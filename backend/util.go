@@ -11,5 +11,11 @@ func CleanURL(URL string) (string, error) {
 		return "", err
 	}
 
-	return u.Host + u.Path, nil
+	cleanURL := u.Host + u.Path
+
+	if string(cleanURL[len(cleanURL)-1]) == "/" {
+		cleanURL = cleanURL[:len(cleanURL)-1]
+	}
+
+	return cleanURL, nil
 }
