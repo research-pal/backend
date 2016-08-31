@@ -54,10 +54,10 @@ function getCurrentTabUrl(callback) {
  * @param {function(string)} errorCallback - Called when the image is not found.
  *   The callback gets a string that describes the failure reason.
  */
-function getImageUrl(searchTerm, callback, errorCallback) {
+function getNotesData(searchTerm, callback, errorCallback) {
   // Google image search - 100 searches per day.
   // https://developers.google.com/image-search/
-  var searchUrl = 'https://ajax.googleapis.com/ajax/services/search/images' +
+  var searchUrl = 'https://ajax.googleapis.com/ajax/services/search/images' + //TODO: to replace this url with the url of the API
     '?v=1.0&q=' + encodeURIComponent(searchTerm);
   var x = new XMLHttpRequest();
   x.open('GET', searchUrl);
@@ -95,9 +95,9 @@ function renderStatus(statusText) {
 document.addEventListener('DOMContentLoaded', function() {
   getCurrentTabUrl(function(url) {
     // Put the image URL in Google search.
-    renderStatus('Performing Google Image search for ' + url);
+    renderStatus(url+':Performing Google Image search');
 
-    getImageUrl(url, function(imageUrl, width, height) {
+    /*getImageUrl(url, function(imageUrl, width, height) {
 
       renderStatus('Search term: ' + url + '\n' +
           'Google image search result: ' + imageUrl);
@@ -113,6 +113,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     }, function(errorMessage) {
       renderStatus('Cannot display image. ' + errorMessage);
-    });
+    });*/
   });
 });
