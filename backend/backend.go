@@ -1,27 +1,75 @@
-package main
+package backend
 
 import (
-	"time"
+	"encoding/json"
+	//"fmt"
+	"net/http"
 
 	"github.com/gorilla/mux"
+	"google.golang.org/appengine"
 )
-
-type Notes struct {
-	URL        string
-	Notes      string
-	LastUpdate time.Time
-}
 
 func init() {
 
 	r := mux.NewRouter()
+	//r.HandleFunc("/", HandleRoot).Methods("GET")
 	r.HandleFunc("/notes", HandleNotesPost).Methods("POST")
 	r.HandleFunc("/notes", HandleNotesPut).Methods("PUT")
+
+	http.Handle("/", r)
+
 }
 
-func HandleNotesPost(w http.ResponseWriter, r *http.Request) {}
+func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 
-func HandleNotesPut(w http.ResponseWriter, r *http.Request) {}
+	//w.Write([]byte("in Notes Post"))
+
+	c := appengine.NewContext(r)
+	notes := Notes{}
+
+	// read from request body
+	if err := json.NewDecoder(r.Body).Decode(&notes); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// search in database
+	if err := notes.get(notes.URL, c); err != nil && err != ErrorNoMatch {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// send response
+	if err := json.NewEncoder(w).Encode(notes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	notes := Notes{}
+
+	// read from request body
+	if err := json.NewDecoder(r.Body).Decode(&notes); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// save to database
+	if err := notes.put(c); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// send response
+	if err := json.NewEncoder(w).Encode(notes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
 
 // TODO:
 //// get/post api endpoint: if url (passed in request body) is already available in database, return that record, otherwise create a record for that url and return that record
