@@ -13,6 +13,7 @@ func init() {
 
 	r := mux.NewRouter()
 	//r.HandleFunc("/", HandleRoot).Methods("GET")
+	r.HandleFunc("/notes/{encodedurl}", HandleNotesGet).Methods("GET")
 	r.HandleFunc("/notes", HandleNotesPost).Methods("POST")
 	r.HandleFunc("/notes", HandleNotesPut).Methods("PUT")
 
@@ -20,21 +21,23 @@ func init() {
 
 }
 
-func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
+func HandleNotesGet(w http.ResponseWriter, r *http.Request) {
 
 	//w.Write([]byte("in Notes Post"))
 
 	c := appengine.NewContext(r)
 	notes := Notes{}
 
-	// read from request body
-	if err := json.NewDecoder(r.Body).Decode(&notes); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// read encoded url from uri
+	params := mux.Vars(r)
+	encodedURL, exists := params["encodedurl"]
+	if !exists {
+		http.Error(w, "url parameter is missing in URI", http.StatusBadRequest)
 		return
 	}
 
 	// search in database
-	if err := notes.get(notes.URL, c); err != nil && err != ErrorNoMatch {
+	if err := notes.get(encodedURL, c); err != nil && err != ErrorNoMatch {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -68,6 +71,10 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+}
+
+func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 
 }
 
