@@ -28,12 +28,24 @@
       - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
      -->
     <script src="popup.js"></script>
+
+
   </head>
-  <body>
+  <body style="width: 200px; height: 296px;">
   Welcome to Note It!
+
+
+<form id="myform" method="post">
+  Notes:<br>
+  <input type="text" name="notes" value="Enter the notes here" id ="notes"/>
+  <br><br>
+  <input id = "postButton" type="button" value="Submit"/>
+</form>
   
     <div id="status"></div>
     <img id="image-result" hidden>
+
+    </script>
   </body>
 </html>
 

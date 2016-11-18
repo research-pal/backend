@@ -28,37 +28,84 @@ function getCurrentTabUrl(callback) {
 
 }
 
+function dosubmit(){
+  var notes = 'my dummy notes'
+  renderStatus(notes);
+  getCurrentTabUrl(function(url) {
+    //renderStatus(encodeURIComponent(url)+':Performing Google Image search');
 
-function getNotesData(searchTerm, errorCallback) {
+    putNotesData(encodeURIComponent(url),notes, function(errorMessage) {
+      //renderStatus('Error: ' + errorMessage);
+    });
+  });
+
+}
+
+function putNotesData(url, notes, errorCallback){
+
+var apiUrl = 'http://localhost:8080/notes'//'http://research-pal.appspot.com/notes/' + url;
+   
   
-  var searchUrl = 'http://research-pal.appspot.com/notes/' + searchTerm;
-	 
-	//renderStatus(searchTerm);
   var x = new XMLHttpRequest();
 
-  x.open('GET', searchUrl);
+  x.open('PUT', apiUrl);
+  //x.setRequestHeader( 'Access-Control-Allow-Origin', '*'); 
+  //x.setRequestHeader( 'Content-Type', 'application/json' );
   
   x.responseType = 'json';
   x.onload = function() { // Parse and process the response 
     var response = x.response;
 
-    if (!response || !response.responseData || !response.responseData.results ||
-        response.responseData.results.length === 0) {
-      errorCallback('No response from Google Image search!');
+    if (!response) { 
+      errorCallback('No response from API!');
       return;
     }
-    var firstResult = response.responseData.results[0];
-    renderStatus(firstResult);
+    var firstResult = response.Notes;
+    document.getElementById('notes').value = firstResult;
+    //renderStatus(firstResult);
+    
+  };
+  x.onerror = function() {
+    errorCallback('Network error.');
+  };
+  var body = '{"URL":"'+url+'","Notes":"'+notes+'"}'
+  x.send(body);
+
+}
+
+
+function getNotesData(searchTerm, errorCallback) {
+  searchTerm= 'www.google.com';
+
+  var searchUrl = 'http://localhost:8080/notes/'+ searchTerm;//'http://research-pal.appspot.com/notes/' + searchTerm;
+	
+  var x = new XMLHttpRequest();
+
+  x.open('GET', searchUrl);
+  //x.setRequestHeader( 'Access-Control-Allow-Origin', '*'); 
+  //x.setRequestHeader( 'Content-Type', 'application/json' );
+  
+  x.responseType = 'json';
+  x.onload = function() { // Parse and process the response 
+    var response = x.response;
+
+    if (!response) { 
+      errorCallback('No response from API!');
+      return;
+    }
+    var firstResult = response.Notes;
+    document.getElementById('notes').value = firstResult;
+    //renderStatus(firstResult);
     
   };
   x.onerror = function() {
     errorCallback('Network error.');
   };
   x.send();
-
-  
   
 }
+
+
 
 function renderStatus(statusText) {
   document.getElementById('status').textContent = statusText;
@@ -72,4 +119,10 @@ document.addEventListener('DOMContentLoaded', function() {
       //renderStatus('Error: ' + errorMessage);
     });
   });
+
+   var postButton = document.getElementById('postButton');
+   postButton.addEventListener('click', function() {
+    dosubmit();
+}, false);
+
 });

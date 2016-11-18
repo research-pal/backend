@@ -11,6 +11,7 @@
   },
   "permissions": [
     "activeTab",
+    "http://research-pal.appspot.com/",
     "http://localhost:8080/"
   ]
 }
