@@ -1,14 +1,9 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
 
-/**
- * Get the current URL.
- *
- * @param {function(string)} callback - called when the URL of the current tab
- *   is found.
- */
-function getCurrentTabUrl(callback) {
+
+var apiUrl = 'http://research-pal.appspot.com/notes'//'http://research-pal.appspot.com/notes' //'http://localhost:8080/notes' //
+
+
+function getCurrentTabUrl(callback) { //Question: what does callback hear mean?
   // Query filter to be passed to chrome.tabs.query - see
   // https://developer.chrome.com/extensions/tabs#method-query
   var queryInfo = {
@@ -21,7 +16,7 @@ function getCurrentTabUrl(callback) {
     var tab = tabs[0];
     var url = tab.url;
 
-    console.assert(typeof url == 'string', 'tab.url should be a string');
+    console.assert(typeof url == 'string', 'tab.url should be a string'); //Question: does console.assert() going to work in chrome extensions?
 
     callback(url);
   });
@@ -29,13 +24,11 @@ function getCurrentTabUrl(callback) {
 }
 
 function dosubmit(){
-  var notes = 'my dummy notes'
-  renderStatus(notes);
+  var notes = document.getElementById('notes').value
+  
   getCurrentTabUrl(function(url) {
-    //renderStatus(encodeURIComponent(url)+':Performing Google Image search');
-
     putNotesData(encodeURIComponent(url),notes, function(errorMessage) {
-      //renderStatus('Error: ' + errorMessage);
+      //TODO: need to handle error or send back to ui
     });
   });
 
@@ -43,14 +36,12 @@ function dosubmit(){
 
 function putNotesData(url, notes, errorCallback){
 
-var apiUrl = 'http://localhost:8080/notes'//'http://research-pal.appspot.com/notes/' + url;
+var putUrl = apiUrl;
    
   
   var x = new XMLHttpRequest();
 
-  x.open('PUT', apiUrl);
-  //x.setRequestHeader( 'Access-Control-Allow-Origin', '*'); 
-  //x.setRequestHeader( 'Content-Type', 'application/json' );
+  x.open('PUT', putUrl);
   
   x.responseType = 'json';
   x.onload = function() { // Parse and process the response 
@@ -62,7 +53,6 @@ var apiUrl = 'http://localhost:8080/notes'//'http://research-pal.appspot.com/not
     }
     var firstResult = response.Notes;
     document.getElementById('notes').value = firstResult;
-    //renderStatus(firstResult);
     
   };
   x.onerror = function() {
@@ -75,9 +65,9 @@ var apiUrl = 'http://localhost:8080/notes'//'http://research-pal.appspot.com/not
 
 
 function getNotesData(searchTerm, errorCallback) {
-  searchTerm= 'www.google.com';
 
-  var searchUrl = 'http://localhost:8080/notes/'+ searchTerm;//'http://research-pal.appspot.com/notes/' + searchTerm;
+
+  var searchUrl = apiUrl + '/'+searchTerm;
 	
   var x = new XMLHttpRequest();
 
@@ -95,7 +85,6 @@ function getNotesData(searchTerm, errorCallback) {
     }
     var firstResult = response.Notes;
     document.getElementById('notes').value = firstResult;
-    //renderStatus(firstResult);
     
   };
   x.onerror = function() {
@@ -107,22 +96,19 @@ function getNotesData(searchTerm, errorCallback) {
 
 
 
-function renderStatus(statusText) {
+/*function renderStatus(statusText) {
   document.getElementById('status').textContent = statusText;
-}
+}*/
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() { //Question: what is the significance of this pattern of calling function in nested manner in javascript?
   getCurrentTabUrl(function(url) {
-    //renderStatus(encodeURIComponent(url)+':Performing Google Image search');
-
     getNotesData(encodeURIComponent(url), function(errorMessage) {
-      //renderStatus('Error: ' + errorMessage);
+      //TODO: need to handle error
     });
   });
 
-   var postButton = document.getElementById('postButton');
-   postButton.addEventListener('click', function() {
+  var postButton = document.getElementById('postButton');
+  postButton.addEventListener('click', function() {
     dosubmit();
-}, false);
-
+  }, false); //Question: what is this false doing here?
 });

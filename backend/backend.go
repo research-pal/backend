@@ -14,8 +14,8 @@ func init() {
 	r := mux.NewRouter()
 	//r.HandleFunc("/", HandleRoot).Methods("GET")
 	r.HandleFunc("/notes/{encodedurl}", HandleNotesGet).Methods("GET")
-	r.HandleFunc("/notes", HandleNotesPost).Methods("POST")
 	r.HandleFunc("/notes", HandleNotesPut).Methods("PUT")
+	r.HandleFunc("/notes", HandleNotesPost).Methods("POST")
 
 	http.Handle("/", r)
 
