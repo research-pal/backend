@@ -8,11 +8,14 @@ import (
 	"google.golang.org/appengine/datastore"
 )
 
-type Notes struct {
-	URL        string
-	Notes      string
-	LastUpdate time.Time
-}
+type (
+	Notes struct {
+		URL        string
+		Notes      string
+		LastUpdate time.Time
+	}
+	NotesAll []Notes
+)
 
 var ErrorNoMatch = errors.New("No Matching Record")
 
@@ -54,5 +57,28 @@ func (n *Notes) put(c context.Context) error {
 	}
 
 	return nil
+
+}
+
+func (n *Notes) Delete(c context.Context) (err error) {
+
+	cleanURL, err := CleanURL(n.URL)
+	key := datastore.NewKey(c, "Notes", cleanURL, 0, nil)
+
+	err = datastore.Delete(c, key)
+
+	return
+}
+
+func (n *NotesAll) Get(c context.Context) (err error) {
+
+	q := datastore.NewQuery("Notes")
+
+	_, err = q.GetAll(c, n)
+	if err != nil {
+		return
+	}
+
+	return
 
 }

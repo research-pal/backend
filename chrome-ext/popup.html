@@ -6,7 +6,7 @@
  -->
 <html>
   <head>
-    <title>Getting Started Extension's Popup</title>
+    <title>Note It! popup</title>
     <style>
       body {
         font-family: "Segoe UI", "Lucida Grande", Tahoma, sans-serif;
@@ -31,21 +31,24 @@
 
 
   </head>
-  <body style="width: 200px; height: 296px;">
-  Welcome to Note It!
+  <body style="width: 600px; height: 296px;">
+    Welcome to Note It!
 
 
-<form id="myform" method="post">
-  Notes:<br>
-  <input type="text" name="notes" value="Enter the notes here" id ="notes"/>
-  <br><br>
-  <input id = "postButton" type="button" value="Submit"/>
-</form>
+    <form id="myform" method="post">
+      Notes:<br>
+      <textarea rows="8" cols="80" id="notes">Enter the notes here
+      </textarea>
+      <br><br>
+      <input id = "postButton" type="button" value="Submit"/>
+    </form>
   
     <div id="status"></div>
     <img id="image-result" hidden>
 
-    </script>
+
+
+
   </body>
 </html>
 

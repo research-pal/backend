@@ -1,6 +1,6 @@
 
 
-var apiUrl = 'http://research-pal.appspot.com/notes'//'http://research-pal.appspot.com/notes' //'http://localhost:8080/notes' //
+var apiUrl ='http://research-pal.appspot.com/notes';  //'http://research-pal.appspot.com/notes' //'http://localhost:8080/notes' //
 
 
 function getCurrentTabUrl(callback) { //Question: what does callback hear mean?
@@ -23,8 +23,9 @@ function getCurrentTabUrl(callback) { //Question: what does callback hear mean?
 
 }
 
+
 function dosubmit(){
-  var notes = document.getElementById('notes').value
+  var notes = document.getElementById('notes').value;
   
   getCurrentTabUrl(function(url) {
     putNotesData(encodeURIComponent(url),notes, function(errorMessage) {
@@ -34,19 +35,16 @@ function dosubmit(){
 
 }
 
+
 function putNotesData(url, notes, errorCallback){
+  var putUrl = apiUrl;
 
-var putUrl = apiUrl;
-   
-  
   var x = new XMLHttpRequest();
-
   x.open('PUT', putUrl);
-  
   x.responseType = 'json';
   x.onload = function() { // Parse and process the response 
-    var response = x.response;
 
+    var response = x.response;
     if (!response) { 
       errorCallback('No response from API!');
       return;
@@ -58,50 +56,46 @@ var putUrl = apiUrl;
   x.onerror = function() {
     errorCallback('Network error.');
   };
-  var body = '{"URL":"'+url+'","Notes":"'+notes+'"}'
+  var body = '{"URL":"'+url+'","Notes":"'+notes+'"}';
   x.send(body);
-
+  renderStatus("saved sucessfully");
 }
 
 
 function getNotesData(searchTerm, errorCallback) {
-
-
-  var searchUrl = apiUrl + '/'+searchTerm;
+  var searchUrl = apiUrl + '?encodedurl='+searchTerm;
 	
   var x = new XMLHttpRequest();
-
   x.open('GET', searchUrl);
   //x.setRequestHeader( 'Access-Control-Allow-Origin', '*'); 
   //x.setRequestHeader( 'Content-Type', 'application/json' );
-  
   x.responseType = 'json';
   x.onload = function() { // Parse and process the response 
     var response = x.response;
-
     if (!response) { 
       errorCallback('No response from API!');
       return;
     }
     var firstResult = response.Notes;
     document.getElementById('notes').value = firstResult;
-    
+
   };
   x.onerror = function() {
     errorCallback('Network error.');
   };
   x.send();
-  
+}
+
+function renderStatus(statusText) {
+  document.getElementById('status').textContent = statusText;
 }
 
 
-
-/*function renderStatus(statusText) {
-  document.getElementById('status').textContent = statusText;
-}*/
-
 document.addEventListener('DOMContentLoaded', function() { //Question: what is the significance of this pattern of calling function in nested manner in javascript?
   getCurrentTabUrl(function(url) {
+    
+    renderStatus(url);
+    renderStatus(encodeURIComponent(url));
     getNotesData(encodeURIComponent(url), function(errorMessage) {
       //TODO: need to handle error
     });
