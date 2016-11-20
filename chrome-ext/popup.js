@@ -1,6 +1,6 @@
 
 
-var apiUrl ='http://research-pal.appspot.com/notes';  //'http://research-pal.appspot.com/notes' //'http://localhost:8080/notes' //
+var apiUrl ='http://localhost:8080/notes';  //'http://research-pal.appspot.com/notes' //'http://localhost:8080/notes' //
 
 
 function getCurrentTabUrl(callback) { //Question: what does callback hear mean?
@@ -58,7 +58,7 @@ function putNotesData(url, notes, errorCallback){
   };
   var body = '{"URL":"'+url+'","Notes":"'+notes+'"}';
   x.send(body);
-  renderStatus("saved sucessfully");
+  renderStatus("saved successfully");
 }
 
 
