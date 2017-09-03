@@ -60,7 +60,7 @@ func (n *Notes) put(c context.Context) error {
 
 }
 
-func (n *Notes) Delete(c context.Context) (err error) {
+func (n *Notes) delete(c context.Context) (err error) {
 
 	cleanURL, err := CleanURL(n.URL)
 	key := datastore.NewKey(c, "Notes", cleanURL, 0, nil)
@@ -70,7 +70,7 @@ func (n *Notes) Delete(c context.Context) (err error) {
 	return
 }
 
-func (n *NotesAll) Get(c context.Context) (err error) {
+func (n *NotesAll) get(c context.Context) (err error) {
 
 	q := datastore.NewQuery("Notes")
 
@@ -80,5 +80,4 @@ func (n *NotesAll) Get(c context.Context) (err error) {
 	}
 
 	return
-
 }
