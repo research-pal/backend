@@ -7,11 +7,11 @@ import (
 
 func init() {
 	r := mux.NewRouter()
-	//r.HandleFunc("/", HandleRoot).Methods("GET")
-	r.HandleFunc("/notes", HandleNotesGet).Methods("GET")
-	r.HandleFunc("/notes", HandleNotesPut).Methods("PUT")
-	r.HandleFunc("/notes", HandleNotesDelete).Methods("DELETE")
-	r.HandleFunc("/notesall", HandleNotesGetAll).Methods("GET") //TODO: /notesall is not looking correct name
+
+	r.Handle("/notes", mw.ThenFunc(HandleNotesGet)).Methods("GET")
+	r.Handle("/notes", mw.ThenFunc(HandleNotesPut)).Methods("PUT")
+	r.Handle("/notes", mw.ThenFunc(HandleNotesDelete)).Methods("DELETE")
+	r.Handle("/notesall", mw.ThenFunc(HandleNotesGetAll)).Methods("GET") //TODO: /notesall is not looking like correct name. may be just /notes with a special query parameter like /notes?all=true
 
 	http.Handle("/", r)
 }
