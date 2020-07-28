@@ -3,9 +3,9 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 
 	"cloud.google.com/go/firestore"
+	"github.com/gorilla/mux"
 	"github.com/research-pal/backend/db/notes"
 	"google.golang.org/appengine"
 )
@@ -13,15 +13,11 @@ import (
 func HandleNotesGet(dbConn *firestore.Client, w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	params := mux.Vars(r)
 
 	encodedURL := ""
-	if val, exists := params["encodedurl"]; exists {
-		encodedURL = val[0]
+	if params["encodedurl"] != "" {
+		encodedURL = params["encodedurl"]
 	} else {
 		http.Error(w, "url parameter is missing in URI", http.StatusBadRequest)
 		return
