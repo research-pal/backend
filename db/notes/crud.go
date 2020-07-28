@@ -19,6 +19,7 @@ import (
 func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) error {
 	var errs errors.ErrMsgs
 	for _, r := range list {
+		r.CreatedDate = time.Now()
 		r.LastUpdate = time.Now()
 		log.Printf("POST CRUD")
 		_, err := dbConn.Collection(CollectionName).Doc(r.ID()).Create(ctx, r)
@@ -48,6 +49,7 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 		return fmt.Errorf("document does not exists to update: key %s", r.ID())
 	}
 
+	r.LastUpdate = time.Now()
 	_, err := dbConn.Collection(CollectionName).Doc(r.ID()).Set(ctx, r)
 	if err != nil {
 		return err
