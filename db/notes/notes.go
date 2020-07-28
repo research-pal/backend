@@ -9,23 +9,23 @@ import (
 var ErrorNoMatch = errors.New("No Matching Record")
 
 type Collection struct {
+	Assignee      string    `firestore:"assignee"`
+	CreatedDate   time.Time `firestore:"created_date"`
+	Group         string    `firestore:"group"`
+	LastUpdate    time.Time `firestore:"last_update"`
+	Notes         string    `firestore:"notes"`
+	PriorityOrder string    `firestore:"priority_order"`
+	Status        string    `firestore:"status"`
 	TaskID        string    `firestore:"task_id"`
 	URL           string    `firestore:"url"`
-	Notes         string    `firestore:"notes"`
-	Status        string    `firestore:"status"`
-	Assignee      string    `firestore:"assignee"`
-	Group         string    `firestore:"group"`
-	PriorityOrder string    `firestore:"priority_order"`
-	CreatedDate   time.Time `firestore:"created_date"`
-	LastUpdate    time.Time `firestore:"last_update"`
 }
 
 // ID generates the document id in the format desired
 // will be used as the document id to save the record, and also to retrieve using it
 // returns empty if any of the key fields are empty
 func (r Collection) ID() string {
-	if r.TaskID == "" {
-		return ""
+	if r.TaskID == "" { // TODO
+		return r.URL
 	}
 	return r.TaskID
 }
