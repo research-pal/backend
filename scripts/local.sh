@@ -1,14 +1,11 @@
 #!/bin/sh
 
 
-
-go get ./...
+go mod vendor
 
 go fmt ./...
 
-
 GCP_PROJECT=research-pal-2
-
 echo $GCP_PROJECT 
 
 rm -f research-pal-backend 
