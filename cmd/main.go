@@ -24,13 +24,20 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/notes", api.HandleNotesGetFiltered).Methods("GET")
-	router.HandleFunc("/notes/{taskid}", api.HandleNotesGetByID).Methods("GET") // docid
-	router.HandleFunc("/notes", api.HandleNotesPost).Methods("POST")
-	router.HandleFunc("/notes", api.HandleNotesPut).Methods("PUT")
+	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesGetFiltered)).Methods("GET")
+	router.HandleFunc("/notes/{docid}", jsonHeaders(api.HandleNotesGetByID)).Methods("GET")
+	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesPost)).Methods("POST")
+	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesPut)).Methods("PUT")
 
 	log.Printf("Listening on port %s\n", port)
 	if err := http.ListenAndServe(":"+port, router); err != nil {
 		log.Println("Listening error :", err)
+	}
+}
+
+func jsonHeaders(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		handler(w, r)
 	}
 }

@@ -2,7 +2,7 @@ package notes
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,7 +29,7 @@ type Collection struct {
 func (r Collection) ID() string {
 	id, err := uuid.NewUUID()
 	if err != nil {
-		fmt.Errorf("uuid error : %v", err)
+		log.Printf("uuid error : %#v\n", err)
 	}
 	return id.String()
 }

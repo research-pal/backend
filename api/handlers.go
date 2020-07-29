@@ -25,10 +25,8 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	// TODO: no query parameters..
 	fieldValue := ""
-	if params["taskid"] != "" {
-		fieldValue = params["taskid"]
-	} else { //if params["encodedurl"] != "" {
-		fieldValue = encodedurl
+	if params["docid"] != "" {
+		fieldValue = params["docid"]
 	}
 
 	note, err := notes.GetByID(c, dbConn, fieldValue)
@@ -67,8 +65,6 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 		field, fieldValue = "assignee", val[0]
 	} else if val, exists := params["group"]; exists {
 		field, fieldValue = "group", val[0]
-	} else if val, exists := params["task_id"]; exists {
-		field, fieldValue = "task_id", val[0]
 	} else {
 		http.Error(w, "parameter is missing in URI", http.StatusBadRequest)
 		return
