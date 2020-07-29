@@ -53,7 +53,10 @@ func HandleNotesGetFiltered(dbConn *firestore.Client, w http.ResponseWriter, r *
 
 	// Group Query params: externalTaskURL(encodedurl), status, group, assignee
 	field, fieldValue := "", ""
-	if val, exists := params["status"]; exists {
+	if _, exists := params["encodedurl"]; exists {
+		HandleNotesGetByID(dbConn, w, r)
+		return
+	} else if val, exists := params["status"]; exists {
 		field, fieldValue = "status", val[0]
 	} else if val, exists := params["assignee"]; exists {
 		field, fieldValue = "assignee", val[0]

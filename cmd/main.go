@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 
 	"cloud.google.com/go/firestore"
@@ -44,21 +43,17 @@ func (m *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// params := mux.Vars(r) // TODO
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// params, err := url.ParseQuery(r.URL.RawQuery)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
 	switch r.URL.Path {
 	case "/notes":
 		switch r.Method {
 		case http.MethodGet:
-			if params["encodedurl"][0] != "" {
-				api.HandleNotesGetByID(m.dbConn, w, r)
-			} else {
-				api.HandleNotesGetFiltered(m.dbConn, w, r)
-			}
+			api.HandleNotesGetFiltered(m.dbConn, w, r)
 		case http.MethodPost:
 			api.HandleNotesPost(m.dbConn, w, r)
 		case http.MethodPut:
