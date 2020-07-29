@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -8,7 +9,7 @@ import (
 )
 
 // ErrorNoMatch reports when record is not matching
-var ErrorNoMatch = erros.New("No Matching Record")
+var ErrorNoMatch = errors.New("No Matching Record")
 
 // Collection holds the table fields
 type Collection struct {
