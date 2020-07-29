@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -24,17 +25,17 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	params := mux.Vars(r)
 	// TODO: no query parameters..
-	fieldValue := ""
+	docID := ""
 	if params["docid"] != "" {
-		fieldValue = params["docid"]
+		docID = params["docid"]
 	}
 
-	note, err := notes.GetByID(c, dbConn, fieldValue)
+	note, err := notes.GetByID(c, dbConn, docID)
 	if err != nil && err != notes.ErrorNoMatch {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if err == notes.ErrorNoMatch {
-		http.Error(w, err.Error()+": "+fieldValue, http.StatusNotFound)
+		http.Error(w, err.Error()+": "+docID, http.StatusNotFound)
 		return
 	}
 
@@ -108,13 +109,22 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := notes.Collection{}
+	params := mux.Vars(r)
+
+	// TODO: no query parameters..
+
+	if params["docid"] == "" {
+		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
+		return
+	}
+	docID := params["docid"]
 
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := notes.Put(c, dbConn, note); err != nil {
+	if err := notes.Put(c, dbConn, docID, note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -123,4 +133,29 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	params := mux.Vars(r)
+
+	// TODO: no query parameters..
+
+	if params["docid"] == "" {
+		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
+		return
+	}
+	docID := params["docid"]
+
+	// if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
+
+	if err := notes.Delete(c, dbConn, docID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, "Document with docID %s is deleted\n", docID)
 }

@@ -9,7 +9,10 @@ import (
 )
 
 // ErrorNoMatch reports when record is not matching
-var ErrorNoMatch = errors.New("No Matching Record")
+var (
+	ErrorNoMatch = errors.New("No Matching Record")
+	ErrorMissing = errors.New("Missing Key Parameters")
+)
 
 // Collection holds the table fields
 type Collection struct {
