@@ -10,6 +10,38 @@ import (
 	"google.golang.org/appengine"
 )
 
+func HandleNotesGetByID(dbConn *firestore.Client, w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	params, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// Query params: externalTaskURL(encodedurl)
+	encodedURL := ""
+	if val, exists := params["encodedurl"]; exists {
+		encodedURL = val[0]
+	} else {
+		http.Error(w, "url parameter is missing in URI", http.StatusBadRequest)
+		return
+	}
+
+	note, err := notes.GetByID(c, dbConn, encodedURL)
+	if err != nil && err != notes.ErrorNoMatch {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if err == notes.ErrorNoMatch {
+		http.Error(w, err.Error()+": "+encodedURL, http.StatusNotFound)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(note); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func HandleNotesGetFiltered(dbConn *firestore.Client, w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
@@ -19,11 +51,9 @@ func HandleNotesGetFiltered(dbConn *firestore.Client, w http.ResponseWriter, r *
 		return
 	}
 
-	// Query params: externalTaskURL(encodedurl), status, group, assignee
+	// Group Query params: externalTaskURL(encodedurl), status, group, assignee
 	field, fieldValue := "", ""
-	if val, exists := params["encodedurl"]; exists {
-		field, fieldValue = "encodedurl", val[0]
-	} else if val, exists := params["status"]; exists {
+	if val, exists := params["status"]; exists {
 		field, fieldValue = "status", val[0]
 	} else if val, exists := params["assignee"]; exists {
 		field, fieldValue = "assignee", val[0]

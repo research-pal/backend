@@ -24,10 +24,10 @@ type Collection struct {
 // will be used as the document id to save the record, and also to retrieve using it
 // returns empty if any of the key fields are empty
 func (r Collection) ID() string {
-	if r.TaskID == "" { // TODO
-		return r.URL
+	if r.URL == "" { // TODO
+		return ""
 	}
-	return r.TaskID
+	return r.URL
 }
 
 const (

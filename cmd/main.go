@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"cloud.google.com/go/firestore"
@@ -41,26 +42,29 @@ func (m *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
+	// params := mux.Vars(r) // TODO
+
+	params, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	switch r.URL.Path {
 	case "/notes":
 		switch r.Method {
 		case http.MethodGet:
-			api.HandleNotesGetFiltered(m.dbConn, w, r)
+			if params["encodedurl"][0] != "" {
+				api.HandleNotesGetByID(m.dbConn, w, r)
+			} else {
+				api.HandleNotesGetFiltered(m.dbConn, w, r)
+			}
 		case http.MethodPost:
 			api.HandleNotesPost(m.dbConn, w, r)
 		case http.MethodPut:
 			api.HandleNotesPut(m.dbConn, w, r)
 		}
 	}
-
-	// params := mux.Vars(r) // TODO
-
-	// params, err := url.ParseQuery(r.URL.RawQuery)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
-	// fmt.Println(params)
 
 	// r.Handle("/notes", mw.ThenFunc(HandleNotesPut)).Methods("PUT")
 	// r.Handle("/notes", mw.ThenFunc(HandleNotesDelete)).Methods("DELETE")
