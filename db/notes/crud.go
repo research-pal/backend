@@ -80,7 +80,7 @@ func Delete(ctx context.Context, dbConn *firestore.Client, dbID string) error {
 	return nil
 }
 
-// Get gets the record based on the db id provided
+// GetByID gets the record based on the db id provided
 // if db id is blank in the input, return error
 // if record is not found, error is returned
 // Note: unlike Query(), Get doesn't apply Valid=True filter
@@ -99,6 +99,7 @@ func GetByID(ctx context.Context, dbConn *firestore.Client, dbID string) (Collec
 	return v, nil
 }
 
+// Get gets the records based on the keys and values provided
 func Get(ctx context.Context, dbConn *firestore.Client, field string, fieldValue string) ([]Collection, error) {
 	if field == "" {
 		return []Collection{}, fmt.Errorf("field is missing, provide field")

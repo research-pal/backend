@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"errors"
-
 	"github.com/google/uuid"
 )
 
-var ErrorNoMatch = errors.New("No Matching Record")
+// ErrorNoMatch reports when record is not matching
+var ErrorNoMatch = erros.New("No Matching Record")
 
+// Collection holds the table fields
 type Collection struct {
 	Assignee      string    `firestore:"assignee" json:"assignee"`
 	CreatedDate   time.Time `firestore:"created_date" json:"created_date"`
@@ -33,6 +33,7 @@ func (r Collection) ID() string {
 	return id.String()
 }
 
+// CollectionName from the cloud
 const (
 	CollectionName = "notes"
 )
