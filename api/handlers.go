@@ -49,7 +49,7 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 
 func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	fields := []string{"encodedurl", "status", "assignee", "group"}
+	fields := []string{"encodedurl", "status", "assignee", "group", "priority_order"}
 	field, fieldValue := "", ""
 
 	// TODO: use mux functions to retrieve query params
