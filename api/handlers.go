@@ -24,11 +24,13 @@ func Init(client *firestore.Client) {
 func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	params := mux.Vars(r)
+
 	// TODO: no query parameters..
-	docID := ""
-	if params["docid"] != "" {
-		docID = params["docid"]
+	if params["docid"] == "" {
+		http.Error(w, "docid is required", http.StatusBadRequest)
+		return
 	}
+	docID := params["docid"]
 
 	note, err := notes.GetByID(c, dbConn, docID)
 	if err != nil && err != notes.ErrorNoMatch {
@@ -47,28 +49,41 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 
 func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
+	fields := []string{"encodedurl", "status", "assignee", "group"}
+	field, fieldValue := "", ""
 
 	// TODO: use mux functions to retrieve query params
+	// mparams := mux.Vars(r)
+	// if mparams ==nil{
+	// 	fmt.Println("params are nil")
+	// 	http.Error(w, "query params are required", http.StatusBadRequest)
+	// 	return
+	// }
+	// fmt.Println(mparams, "\t:\t", r.URL.RequestURI())
+	// for _, f = range fields {
+	// 	if params[f] != "" {
+	// 		field = f
+	// 		if f == "encodedurl" {
+	// 			field = "url"
+	// 		}
+	// 		fieldValue = params[f]
+	// 	}
+	// }
+
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	// Group Query params: externalTaskURL(encodedurl), status, group, assignee
-
-	field, fieldValue := "", ""
-	if val, exists := params["encodedurl"]; exists {
-		field, fieldValue = "url", val[0]
-	} else if val, exists := params["status"]; exists {
-		field, fieldValue = "status", val[0]
-	} else if val, exists := params["assignee"]; exists {
-		field, fieldValue = "assignee", val[0]
-	} else if val, exists := params["group"]; exists {
-		field, fieldValue = "group", val[0]
-	} else {
-		http.Error(w, "parameter is missing in URI", http.StatusBadRequest)
-		return
+	for _, f := range fields {
+		if val, exists := params[f]; exists {
+			field = f
+			if f == "encodedurl" {
+				field = "url"
+			}
+			fieldValue = val[0]
+		}
 	}
 
 	note, err := notes.Get(c, dbConn, field, fieldValue)

@@ -51,6 +51,7 @@ func Put(ctx context.Context, dbConn *firestore.Client, docID string, r Collecti
 		return fmt.Errorf("document does not exists to update: key %s", docID)
 	}
 
+	log.Printf("PUT CRUD")
 	r.LastUpdate = time.Now()
 	_, err := dbConn.Collection(CollectionName).Doc(docID).Set(ctx, r)
 	if err != nil {
@@ -72,6 +73,7 @@ func Delete(ctx context.Context, dbConn *firestore.Client, docID string) error {
 		return errors.NewError(errors.ErrNotFound, docID)
 	}
 
+	log.Printf("DELETE CRUD")
 	_, err := dbConn.Collection(CollectionName).Doc(docID).Delete(ctx)
 	if err != nil {
 		return errors.NewError(errors.ErrGeneric, err.Error())
@@ -89,6 +91,7 @@ func GetByID(ctx context.Context, dbConn *firestore.Client, docID string) (Colle
 		return Collection{}, fmt.Errorf("docID is missing, provide id")
 	}
 
+	log.Printf("GET BY ID CRUD")
 	r, err := dbConn.Collection(CollectionName).Doc(docID).Get(ctx)
 	if err != nil {
 		return Collection{}, err
@@ -102,12 +105,13 @@ func GetByID(ctx context.Context, dbConn *firestore.Client, docID string) (Colle
 // Get gets the records based on the keys and their values provided
 func Get(ctx context.Context, dbConn *firestore.Client, field string, fieldValue string) ([]Collection, error) {
 	if field == "" {
-		return []Collection{}, fmt.Errorf("field is missing, provide field")
+		return []Collection{}, fmt.Errorf("required parameter is missing in URI")
 	}
 
 	vOne := Collection{}
 	v := []Collection{}
 
+	log.Printf("GET BY FILTER CRUD")
 	iter := dbConn.Collection(CollectionName).Where(field, "==", fieldValue).Documents(ctx)
 	for {
 		doc, err := iter.Next()
