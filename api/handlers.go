@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -23,21 +24,20 @@ func Init(client *firestore.Client) {
 
 func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	params := mux.Vars(r)
 
-	// TODO: no query parameters..
-	if params["docid"] == "" {
-		http.Error(w, "docid is required", http.StatusBadRequest)
+	params := mux.Vars(r)
+	if params["id"] == "" {
+		http.Error(w, "id is required", http.StatusBadRequest)
 		return
 	}
-	docID := params["docid"]
+	id := params["id"]
 
-	note, err := notes.GetByID(c, dbConn, docID)
+	note, err := notes.GetByID(c, dbConn, id)
 	if err != nil && err != notes.ErrorNoMatch {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if err == notes.ErrorNoMatch {
-		http.Error(w, err.Error()+": "+docID, http.StatusNotFound)
+		http.Error(w, err.Error()+": "+id, http.StatusNotFound)
 		return
 	}
 
@@ -47,51 +47,30 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleNotesGetFiltered get the filtered data. below filters are supported:
+// encodedurl, assignee, status, group, priority_order
 func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	fields := []string{"encodedurl", "status", "assignee", "group", "priority_order"}
-	field, fieldValue := "", ""
+	filters := map[string]string{}
 
-	// TODO: use mux functions to retrieve query params
-	// mparams := mux.Vars(r)
-	// if mparams ==nil{
-	// 	fmt.Println("params are nil")
-	// 	http.Error(w, "query params are required", http.StatusBadRequest)
-	// 	return
-	// }
-	// fmt.Println(mparams, "\t:\t", r.URL.RequestURI())
-	// for _, f = range fields {
-	// 	if params[f] != "" {
-	// 		field = f
-	// 		if f == "encodedurl" {
-	// 			field = "url"
-	// 		}
-	// 		fieldValue = params[f]
-	// 	}
-	// }
-
+	// TODO: catch typos for key from params here
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// Group Query params: externalTaskURL(encodedurl), status, group, assignee
-	for _, f := range fields {
-		if val, exists := params[f]; exists {
-			field = f
-			if f == "encodedurl" {
-				field = "url"
-			}
-			fieldValue = val[0]
-		}
+	for k, v := range params {
+		filters[k] = v[0]
 	}
 
-	note, err := notes.Get(c, dbConn, field, fieldValue)
+	// Group Query params: externalTaskURL(encodedurl), status, group, assignee
+
+	note, err := notes.Get(c, dbConn, filters)
 	if err != nil && err != notes.ErrorNoMatch {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if err == notes.ErrorNoMatch {
-		http.Error(w, err.Error()+": "+fieldValue, http.StatusNotFound)
+		http.Error(w, err.Error()+": "+"filters", http.StatusNotFound)
 		return
 	}
 
@@ -124,22 +103,20 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := notes.Collection{}
+
 	params := mux.Vars(r)
-
-	// TODO: no query parameters..
-
-	if params["docid"] == "" {
+	if params["id"] == "" {
 		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
 		return
 	}
-	docID := params["docid"]
+	id := params["id"]
 
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := notes.Put(c, dbConn, docID, note); err != nil {
+	if err := notes.Put(c, dbConn, id, note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -152,25 +129,18 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 
 func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
+
 	params := mux.Vars(r)
-
-	// TODO: no query parameters..
-
-	if params["docid"] == "" {
+	if params["id"] == "" {
 		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
 		return
 	}
-	docID := params["docid"]
+	id := params["id"]
 
-	// if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
-
-	if err := notes.Delete(c, dbConn, docID); err != nil {
+	if err := notes.Delete(c, dbConn, id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprintf(w, "Document with docID %s is deleted\n", docID)
+	fmt.Fprintf(w, "Document with id %s is deleted\n", id)
 }

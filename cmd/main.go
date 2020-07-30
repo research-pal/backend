@@ -25,9 +25,9 @@ func main() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesGetFiltered)).Methods("GET")
-	router.HandleFunc("/notes/{docid}", jsonHeaders(api.HandleNotesGetByID)).Methods("GET")
-	router.HandleFunc("/notes/{docid}", jsonHeaders(api.HandleNotesPut)).Methods("PUT")
-	router.HandleFunc("/notes/{docid}", jsonHeaders(api.HandleNotesDelete)).Methods("DELETE")
+	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesGetByID)).Methods("GET")
+	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesPut)).Methods("PUT")
+	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesDelete)).Methods("DELETE")
 	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesPost)).Methods("POST")
 
 	log.Printf("Listening on port %s\n", port)
