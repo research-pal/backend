@@ -149,7 +149,7 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Document with id %s is deleted\n", id)
 }
 
-func keExists(k string) bool {
+func keyExists(k string) bool {
 	fields := []string{"encodedurl", "assignee", "status", "group", "priority_order"}
 	for i := range fields {
 		if fields[i] == k {
