@@ -52,17 +52,22 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	filters := map[string]string{}
 
-	// TODO: catch typos for key from params here
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	for k, v := range params {
+		if !keyExists(k) {
+			fmt.Fprintf(w, "%s key is either not exist or a typo, try correcting.", k)
+			// http.Error(w, err.Error(), http.StatusBadRequest) // not woring
+			return
+		}
 		filters[k] = v[0]
 	}
 
-	// Group Query params: externalTaskURL(encodedurl), status, group, assignee
+	// Group Query params: encodedurl, status, group, assignee, priority_order
 
 	note, err := notes.Get(c, dbConn, filters)
 	if err != nil && err != notes.ErrorNoMatch {
@@ -142,4 +147,14 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "Document with id %s is deleted\n", id)
+}
+
+func keExists(k string) bool {
+	fields := []string{"encodedurl", "assignee", "status", "group", "priority_order"}
+	for i := range fields {
+		if fields[i] == k {
+			return true
+		}
+	}
+	return false
 }
