@@ -20,19 +20,36 @@ import (
 // returns list of errors (in the format errors.ErrMsgs) for all the failed records
 func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) error {
 	var errs errors.ErrMsgs
+	checkURL := map[string]string{}
+
 	for _, r := range list {
-		r.CreatedDate = time.Now()
-		r.LastUpdate = time.Now()
-		r.Status = "new"
-		log.Printf("POST CRUD")
-		_, err := dbConn.Collection(CollectionName).Doc(r.ID()).Create(ctx, r)
-		if err != nil {
-			log.Printf("POST CRUD error: %#v", err)
-			errType := errors.ErrGeneric
-			if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
-				errType = errors.ErrExists
+		if r.URL == "" {
+			log.Printf("url is emtpy")
+			return fmt.Errorf("record must have url value")
+		}
+		checkURL["url"] = r.URL
+		existing, _ := Get(ctx, dbConn, checkURL)
+		// if err != nil {
+		// log.Printf("error getting record by url: %v", err)
+		// return fmt.Errorf("document does not exists to update: url %s", r.URL)
+		// }
+		if len(existing) == 0 {
+			r.CreatedDate = time.Now()
+			r.LastUpdate = time.Now()
+			r.Status = "new"
+			log.Printf("POST CRUD")
+			_, err := dbConn.Collection(CollectionName).Doc(r.ID()).Create(ctx, r)
+			if err != nil {
+				log.Printf("POST CRUD error: %#v", err)
+				errType := errors.ErrGeneric
+				if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
+					errType = errors.ErrExists
+				}
+				errs = append(errs, errors.NewError(errType, r.ID()).(errors.ErrMsg))
 			}
-			errs = append(errs, errors.NewError(errType, r.ID()).(errors.ErrMsg))
+		} else if existing[0].URL == r.URL {
+			log.Printf("record already exists by url: %v", r.URL)
+			return fmt.Errorf("record already exists with encodedurl %s", r.URL)
 		}
 	}
 	if len(errs) > 0 {
