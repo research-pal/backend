@@ -23,6 +23,7 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) erro
 	for _, r := range list {
 		r.CreatedDate = time.Now()
 		r.LastUpdate = time.Now()
+		r.Status = "new"
 		log.Printf("POST CRUD")
 		_, err := dbConn.Collection(CollectionName).Doc(r.ID()).Create(ctx, r)
 		if err != nil {
@@ -47,9 +48,7 @@ func Put(ctx context.Context, dbConn *firestore.Client, id string, r Collection)
 	if id == "" {
 		return fmt.Errorf("key fields are missing: key %s", id)
 	}
-	// if !exists(ctx, dbConn, id) {
-	// 	return fmt.Errorf("document does not exists to update: key %s", id)
-	// }
+
 	existing, err := GetByID(ctx, dbConn, id)
 	if err != nil {
 		log.Printf("error getting record by id: %v", err)
@@ -128,7 +127,9 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 
 	log.Printf("GET BY FILTER CRUD")
 	var iter *firestore.DocumentIterator
-	if len(filters) == 1 {
+	if len(filters) == 0 {
+		iter = dbConn.Collection(CollectionName).Documents(ctx)
+	} else if len(filters) == 1 {
 		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Documents(ctx)
 	} else if len(filters) == 2 {
 		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Where(fields[1], "==", fieldvals[1]).Documents(ctx)

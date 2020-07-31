@@ -17,10 +17,12 @@ var (
 	encodedurl string
 )
 
+// Init initializes database connection
 func Init(client *firestore.Client) {
 	dbConn = client
 }
 
+// HandleNotesGetByID get the data by id provided.
 func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
@@ -60,7 +62,7 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 
 	for k, v := range params {
 		if !keyExists(k) {
-			fmt.Fprintf(w, "%s key is either not exist or a typo, try correcting.", k)
+			fmt.Fprintf(w, "given key `%s` is either doesn't exist or a typo, try correcting.", k)
 			// http.Error(w, err.Error(), http.StatusBadRequest) // not woring
 			return
 		}
@@ -78,12 +80,19 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(note) == 0 {
+		fmt.Fprintf(w, "There are no data for such query\nSupports upto 2 params only or try another query.")
+		return
+	}
+
 	if err := json.NewEncoder(w).Encode(note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
+// HandleNotesPost saves the data in the db. below paramaters in json would do the action:
+// {"assignee":"","group":"","notes":"","priority_order":"","status":"","url":""}
 func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := []notes.Collection{}
@@ -104,6 +113,8 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleNotesPut gets the data by id provided and replaces the content given in below parameters.
+// {"assignee":"","group":"","notes":"","priority_order":"","status":"","url":""}
 func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := notes.Collection{}
@@ -131,6 +142,7 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleNotesDelete identifies by id provided and deletes it from db.
 func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
