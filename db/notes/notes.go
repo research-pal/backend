@@ -16,6 +16,7 @@ var (
 
 // Collection holds the table fields
 type Collection struct {
+	DocID         string    `firestore:"-" json:"id"`
 	Assignee      string    `firestore:"assignee" json:"assignee"`
 	CreatedDate   time.Time `firestore:"created_date" json:"created_date"`
 	Group         string    `firestore:"group" json:"group"`

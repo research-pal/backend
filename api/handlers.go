@@ -76,12 +76,12 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if err == notes.ErrorNoMatch {
-		http.Error(w, err.Error()+": "+"filters", http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("no records found with given filters: %v", filters), http.StatusNotFound)
 		return
 	}
 
 	if len(note) == 0 {
-		fmt.Fprintf(w, "There are no data for such query\nSupports upto 2 params only or try another query.")
+		fmt.Fprintf(w, "There are no data for such query")
 		return
 	}
 

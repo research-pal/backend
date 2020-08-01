@@ -28,11 +28,11 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) erro
 			return fmt.Errorf("record must have url value")
 		}
 		checkURL["url"] = r.URL
-		existing, _ := Get(ctx, dbConn, checkURL)
-		// if err != nil {
-		// log.Printf("error getting record by url: %v", err)
-		// return fmt.Errorf("document does not exists to update: url %s", r.URL)
-		// }
+		existing, err := Get(ctx, dbConn, checkURL)
+		if err != nil {
+			log.Printf("error getting record by url: %v", err)
+			return fmt.Errorf("document does not exists to update: url %s", r.URL)
+		}
 		if len(existing) == 0 {
 			r.CreatedDate = time.Now()
 			r.LastUpdate = time.Now()
@@ -146,10 +146,12 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 	var iter *firestore.DocumentIterator
 	if len(filters) == 0 {
 		iter = dbConn.Collection(CollectionName).Documents(ctx)
-	} else if len(filters) == 1 {
+	} else if len(filters) == 1 { //TODO: use a for loop instead of hardcoding using else if
 		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Documents(ctx)
 	} else if len(filters) == 2 {
 		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Where(fields[1], "==", fieldvals[1]).Documents(ctx)
+	} else if len(filters) > 2 {
+		return []Collection{}, fmt.Errorf("query params are %d, supports only 2 params", len(filters))
 	}
 	for {
 		doc, err := iter.Next()
@@ -169,7 +171,7 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 		if err != nil {
 			return []Collection{}, err
 		}
-
+		vOne.DocID = doc.Ref.ID
 		v = append(v, vOne)
 	}
 	return v, nil
