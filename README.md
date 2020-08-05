@@ -17,5 +17,5 @@ Note: if you need to create another key, if original key is lost or giving acces
         ERROR: (gcloud.app.deploy) Error Response: [13] Error processing user code.  
     the email id of the default service account will be of the below pattern <projectId>@appspot.gserviceaccount.com  
 2) "Cloud Build API" api should be enabled for the project. just one time thing.  
-3) set the project name correctly in ./scripts/deploy.sh to the `gcloud config set project ` command   
+3) set the project name correctly in ./scripts/deploy.sh to the `gcloud config set project ` command  
 4) run ./scripts/deploy.sh  
