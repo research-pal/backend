@@ -119,6 +119,7 @@ func GetByID(ctx context.Context, dbConn *firestore.Client, id string) (Collecti
 		return Collection{}, err
 	}
 	v := Collection{}
+	v.DocID = id
 	r.DataTo(&v)
 
 	return v, nil
