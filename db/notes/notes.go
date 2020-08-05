@@ -1,29 +1,44 @@
 package notes
 
 import (
+	"errors"
+	"log"
 	"time"
 
-	"errors"
+	"github.com/google/uuid"
 )
 
-var ErrorNoMatch = errors.New("No Matching Record")
+// ErrorNoMatch reports when record is not matching
+var (
+	ErrorNoMatch = errors.New("No Matching Record")
+	ErrorMissing = errors.New("Missing Key Parameters")
+)
 
+// Collection holds the table fields
 type Collection struct {
-	URL        string    `firestore:"url"`
-	Notes      string    `firestore:"notes"`
-	LastUpdate time.Time `firestore:"last_update"`
+	DocID         string    `firestore:"-" json:"id"`
+	Assignee      string    `firestore:"assignee" json:"assignee"`
+	CreatedDate   time.Time `firestore:"created_date" json:"created_date"`
+	Group         string    `firestore:"group" json:"group"`
+	LastUpdate    time.Time `firestore:"last_update" json:"last_updated"`
+	Notes         string    `firestore:"notes" json:"notes"`
+	PriorityOrder string    `firestore:"priority_order" json:"priority_order"`
+	Status        string    `firestore:"status" json:"status"`
+	URL           string    `firestore:"url" json:"url"`
 }
 
 // ID generates the document id in the format desired
 // will be used as the document id to save the record, and also to retrieve using it
 // returns empty if any of the key fields are empty
 func (r Collection) ID() string {
-	if r.URL == "" {
-		return ""
+	id, err := uuid.NewUUID()
+	if err != nil {
+		log.Printf("uuid error : %#v\n", err)
 	}
-	return r.URL
+	return id.String()
 }
 
+// CollectionName from the cloud
 const (
 	CollectionName = "notes"
 )

@@ -1,56 +1,44 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
-	"cloud.google.com/go/firestore"
+	"github.com/gorilla/mux"
 
 	"github.com/research-pal/backend/api"
 	"github.com/research-pal/backend/db"
 )
 
 func main() {
-
 	dbClient := db.NewDBClient()
 	defer dbClient.Close()
+	api.Init(dbClient)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
-		log.Printf("Defaulting to port %s", port)
+		log.Printf("Defaulting port to %s", port)
 	}
-	server := http.Server{
-		Addr: fmt.Sprintf(":%v", port),
-		Handler: &myHandler{
-			dbConn: dbClient,
-		},
+
+	router := mux.NewRouter()
+
+	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesGetFiltered)).Methods("GET")
+	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesGetByID)).Methods("GET")
+	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesPut)).Methods("PUT")
+	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesDelete)).Methods("DELETE")
+	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesPost)).Methods("POST")
+
+	log.Printf("Listening on port %s\n", port)
+	if err := http.ListenAndServe(":"+port, router); err != nil {
+		log.Println("Listening error :", err)
 	}
-	log.Printf("Listening on port %s", port)
-	log.Fatal(server.ListenAndServe())
 }
 
-type myHandler struct {
-	dbConn *firestore.Client
-}
-
-func (m *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("ServeHTTP() started with path", r.Method, r.URL.Path)
-	switch r.URL.Path {
-	case "/notes":
-		switch r.Method {
-		case http.MethodGet:
-			api.HandleNotesGet(m.dbConn, w, r)
-		case http.MethodPost:
-			api.HandleNotesPost(m.dbConn, w, r)
-		case http.MethodPut:
-			api.HandleNotesPut(m.dbConn, w, r)
-		}
+func jsonHeaders(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		handler(w, r)
 	}
-	// r.Handle("/notes", mw.ThenFunc(HandleNotesPut)).Methods("PUT")
-	// r.Handle("/notes", mw.ThenFunc(HandleNotesDelete)).Methods("DELETE")
-	// r.Handle("/notesall", mw.ThenFunc(HandleNotesGetAll)).Methods("GET") //TODO: /notesall is not looking like correct name. may be just /notes with a special query parameter like /notes?all=true
-
 }
