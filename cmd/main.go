@@ -27,6 +27,7 @@ func main() {
 	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesGetFiltered)).Methods("GET")
 	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesGetByID)).Methods("GET")
 	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesPut)).Methods("PUT")
+	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesPatch)).Methods("PATCH")
 	router.HandleFunc("/notes/{id}", jsonHeaders(api.HandleNotesDelete)).Methods("DELETE")
 	router.HandleFunc("/notes", jsonHeaders(api.HandleNotesPost)).Methods("POST")
 

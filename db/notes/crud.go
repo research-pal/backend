@@ -83,6 +83,29 @@ func Put(ctx context.Context, dbConn *firestore.Client, id string, r Collection)
 	return nil
 }
 
+// Patch updates the record
+func Patch(ctx context.Context, dbConn *firestore.Client, id string, r Collection) error {
+	if id == "" {
+		return fmt.Errorf("key fields are missing: key %s", id)
+	}
+
+	existing, err := GetByID(ctx, dbConn, id)
+	if err != nil {
+		log.Printf("error getting record by id: %v", err)
+		return fmt.Errorf("document does not exists to update: key %s", id)
+	}
+
+	log.Printf("PUT CRUD")
+	r.CreatedDate = existing.CreatedDate
+	r.LastUpdate = time.Now()
+	_, err = dbConn.Collection(CollectionName).Doc(id).Set(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Delete deletes the record
 // if doc id is blank in the input, returns generic error
 // if doc id is not found in the database, returns not found error

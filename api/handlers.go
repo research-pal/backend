@@ -161,6 +161,36 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Document with id %s is deleted\n", id)
 }
 
+// HandleNotesPatch updates only give key value pairs
+func HandleNotesPatch(w http.ResponseWriter, r *http.Request) { // TODO
+	// c := appengine.NewContext(r)
+	note := notes.Collection{}
+
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", note)
+
+	// if err := notes.Put(c, dbConn, id, note); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+	// note.DocID = id
+	// if err := json.NewEncoder(w).Encode(note); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+
+}
+
 func keyExists(k string) bool {
 	fields := []string{"encodedurl", "assignee", "status", "group", "priority_order"}
 	for i := range fields {
