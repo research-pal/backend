@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -161,10 +162,10 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Document with id %s is deleted\n", id)
 }
 
-// HandleNotesPatch updates only give key value pairs
-func HandleNotesPatch(w http.ResponseWriter, r *http.Request) { // TODO
-	// c := appengine.NewContext(r)
-	note := notes.Collection{}
+// HandleNotesPatch updates only give key values in input
+func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	// note := notes.Collection{}
 
 	id := mux.Vars(r)["id"]
 	if id == "" {
@@ -172,23 +173,24 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) { // TODO
 		return
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	content, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "problem to read request body", http.StatusBadRequest)
+	}
+
+	data := map[string]interface{}{}
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		http.Error(w, "Unmarshal error..", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Fprintf(w, "%v", note)
+	if err := notes.Patch(c, dbConn, id, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	// if err := notes.Put(c, dbConn, id, note); err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	// note.DocID = id
-	// if err := json.NewEncoder(w).Encode(note); err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-
+	fmt.Fprintf(w, "Document with id %s is updated\n", id)
 }
 
 func keyExists(k string) bool {

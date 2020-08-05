@@ -83,24 +83,24 @@ func Put(ctx context.Context, dbConn *firestore.Client, id string, r Collection)
 	return nil
 }
 
-// Patch updates the record
-func Patch(ctx context.Context, dbConn *firestore.Client, id string, r Collection) error {
+// Patch updates the record with only provided fields
+func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[string]interface{}) error {
+	batch := dbConn.Batch()
+
 	if id == "" {
 		return fmt.Errorf("key fields are missing: key %s", id)
 	}
 
-	existing, err := GetByID(ctx, dbConn, id)
-	if err != nil {
-		log.Printf("error getting record by id: %v", err)
+	log.Printf("PATCH CRUD")
+	if exists(ctx, dbConn, id) {
+		r["last_update"] = time.Now()
+		batch.Set(dbConn.Collection(CollectionName).Doc(id), r, firestore.MergeAll)
+		_, err := batch.Commit(ctx)
+		if err != nil {
+			return err
+		}
+	} else {
 		return fmt.Errorf("document does not exists to update: key %s", id)
-	}
-
-	log.Printf("PUT CRUD")
-	r.CreatedDate = existing.CreatedDate
-	r.LastUpdate = time.Now()
-	_, err = dbConn.Collection(CollectionName).Doc(id).Set(ctx, r)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -136,7 +136,7 @@ func GetByID(ctx context.Context, dbConn *firestore.Client, id string) (Collecti
 		return Collection{}, fmt.Errorf("id is missing, provide id")
 	}
 
-	log.Printf("GET BY ID CRUD")
+	log.Printf("GETBYID CRUD")
 	r, err := dbConn.Collection(CollectionName).Doc(id).Get(ctx)
 	if err != nil {
 		return Collection{}, err
@@ -166,7 +166,7 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 	vOne := Collection{}
 	v := []Collection{}
 
-	log.Printf("GET BY FILTER CRUD")
+	log.Printf("GETBYFILTER CRUD")
 	var iter *firestore.DocumentIterator
 	if len(filters) == 0 {
 		iter = dbConn.Collection(CollectionName).Documents(ctx)
