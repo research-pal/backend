@@ -13,10 +13,7 @@ import (
 	"google.golang.org/appengine"
 )
 
-var (
-	dbConn     *firestore.Client
-	encodedurl string
-)
+var dbConn *firestore.Client
 
 // Init initializes database connection
 func Init(client *firestore.Client) {
