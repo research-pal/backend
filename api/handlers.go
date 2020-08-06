@@ -59,8 +59,9 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for k, v := range params {
-		if !keyExists(k) {
-			http.Error(w, fmt.Sprintf("given key `%s` is either doesn't exist or a typo, try correcting.", k), http.StatusBadRequest)
+		if !isAllowedQueryParam(k) {
+			http.Error(w, fmt.Sprintf("given key `%s` is either doesn't exist or a typo, try correcting.", k),
+				http.StatusBadRequest)
 			return
 		}
 		filters[k] = v[0]
@@ -88,7 +89,7 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleNotesPost saves the data in the db. below paramaters in json would do the action:
+// HandleNotesPost saves the data in the db. below parameters in json would do the action:
 // {"assignee":"","group":"","notes":"","priority_order":"","status":"","url":""}
 func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -128,7 +129,16 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := notes.Put(c, dbConn, id, note); err != nil {
+	if note.DocID == "" {
+		note.DocID = id
+	}
+
+	if note.ID() != id {
+		http.Error(w, "id in payload is incorrect", http.StatusBadRequest)
+		return
+	}
+
+	if err := notes.Put(c, dbConn, note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -161,7 +171,6 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 // HandleNotesPatch updates only give key values in input
 func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	note := notes.Collection{}
 
 	id := mux.Vars(r)["id"]
 	if id == "" {
@@ -181,7 +190,8 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if note, err = notes.Patch(c, dbConn, id, data); err != nil {
+	note, err := notes.Patch(c, dbConn, id, data)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -192,7 +202,7 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func keyExists(k string) bool {
+func isAllowedQueryParam(k string) bool {
 	fields := []string{"encodedurl", "assignee", "status", "group", "priority_order"}
 	for i := range fields {
 		if fields[i] == k {

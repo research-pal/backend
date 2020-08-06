@@ -27,10 +27,12 @@ type Collection struct {
 	EncodedURL    string    `firestore:"encodedurl" json:"encodedurl"`
 }
 
-// ID generates the document id in the format desired
+// ID generates the document id in the format desired if the DocID is not there
 // will be used as the document id to save the record, and also to retrieve using it
-// returns empty if any of the key fields are empty
 func (r Collection) ID() string {
+	if r.DocID != "" {
+		return r.DocID
+	}
 	id, err := uuid.NewUUID()
 	if err != nil {
 		log.Printf("uuid error : %#v\n", err)

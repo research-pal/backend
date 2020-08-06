@@ -5,7 +5,6 @@ package notes
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -13,7 +12,6 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"github.com/muly/go-common/errors"
-	"google.golang.org/api/iterator"
 )
 
 // Post posts the given list of records into the database collection
@@ -61,21 +59,22 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) erro
 // Put updates the record
 // if unique fields which being doc id is missing in the parameters, return error
 // matches the record based on the doc id and updates the field with what is provided in the input struct
-func Put(ctx context.Context, dbConn *firestore.Client, id string, r Collection) error {
-	if id == "" {
-		return fmt.Errorf("key fields are missing: key %s", id)
+func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
+	if r.DocID == "" {
+		return fmt.Errorf("key fields are missing: key %s", r.DocID)
 	}
 
-	existing, err := GetByID(ctx, dbConn, id)
+	existing, err := GetByID(ctx, dbConn, r.DocID)
 	if err != nil {
 		log.Printf("error getting record by id: %v", err)
-		return fmt.Errorf("document does not exists to update: key %s", id)
+		return fmt.Errorf("document does not exists to update: key %s", r.DocID)
 	}
 
 	log.Printf("PUT CRUD")
 	r.CreatedDate = existing.CreatedDate
 	r.LastUpdate = time.Now()
-	_, err = dbConn.Collection(CollectionName).Doc(id).Set(ctx, r)
+	// TODO : PUT and PATCH, when id provided in the request and is different than in the URL, we should throw error
+	_, err = dbConn.Collection(CollectionName).Doc(r.DocID).Set(ctx, r)
 	if err != nil {
 		return err
 	}
@@ -95,6 +94,8 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[strin
 	log.Printf("PATCH CRUD")
 	if exists(ctx, dbConn, id) {
 		r["last_update"] = time.Now()
+		// TODO:find better method to update instead of using batch approach
+		// TODO : PUT and PATCH, when id provided in the request and is different than in the URL, we should throw error
 		batch.Set(dbConn.Collection(CollectionName).Doc(id), r, firestore.MergeAll)
 		_, err := batch.Commit(ctx)
 		if err != nil {
@@ -159,45 +160,28 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 		return []Collection{}, fmt.Errorf("required parameter is missing in URI")
 	}
 
-	fields, fieldvals := []string{}, []string{}
-	for k, v := range filters {
-		fields = append(fields, k)
-		fieldvals = append(fieldvals, v)
-	}
-
-	vOne := Collection{}
-	v := []Collection{}
+	results := []Collection{}
 
 	log.Printf("GETBYFILTER CRUD")
-	collRef := dbConn.Collection(CollectionName)
-	query := collRef.Query
+	query := dbConn.Collection(CollectionName).Query
 	for key, value := range filters {
 		query = query.Where(key, "==", value)
 	}
-	iter := query.Documents(ctx)
-
-	for {
-		doc, err := iter.Next()
-
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return []Collection{}, err
-		}
-
-		out, err := json.Marshal(doc.Data())
-		if err != nil {
-			return []Collection{}, err
-		}
-		err = json.Unmarshal(out, &vOne)
-		if err != nil {
-			return []Collection{}, err
-		}
-		vOne.DocID = doc.Ref.ID
-		v = append(v, vOne)
+	docs, err := query.Documents(ctx).GetAll()
+	if err != nil {
+		return []Collection{}, err
 	}
-	return v, nil
+
+	for _, doc := range docs {
+		r := Collection{}
+		if err := doc.DataTo(&r); err != nil {
+			return []Collection{}, err
+		}
+		r.DocID = doc.Ref.ID
+		results = append(results, r)
+	}
+
+	return results, nil
 }
 
 func exists(ctx context.Context, dbConn *firestore.Client, id string) bool {
