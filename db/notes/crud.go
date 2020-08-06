@@ -162,7 +162,7 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 	fields, fieldvals := []string{}, []string{}
 	for k, v := range filters {
 		if k == "encodedurl" {
-			k = "url"
+			k = "url" // TODO: remove this in crud and replace url in db as encodedurl
 		}
 		fields = append(fields, k)
 		fieldvals = append(fieldvals, v)
@@ -172,17 +172,12 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 	v := []Collection{}
 
 	log.Printf("GETBYFILTER CRUD")
-	var iter *firestore.DocumentIterator
-	if len(filters) == 0 {
-		iter = dbConn.Collection(CollectionName).Documents(ctx)
-		// } else { //TODO: use a for loop instead of hardcoding using else if
-	} else if len(filters) == 1 {
-		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Documents(ctx)
-	} else if len(filters) == 2 {
-		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Where(fields[1], "==", fieldvals[1]).Documents(ctx)
-	} else if len(filters) > 2 {
-		return []Collection{}, fmt.Errorf("query params are %d, supports only 2 params", len(filters))
+	collRef := dbConn.Collection(CollectionName)
+	query := collRef.Query
+	for key, value := range filters {
+		query = query.Where(key, "==", value)
 	}
+	iter := query.Documents(ctx)
 
 	for {
 		doc, err := iter.Next()
