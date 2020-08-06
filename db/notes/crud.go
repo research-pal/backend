@@ -84,26 +84,31 @@ func Put(ctx context.Context, dbConn *firestore.Client, id string, r Collection)
 }
 
 // Patch updates the record with only provided fields
-func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[string]interface{}) error {
+func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[string]interface{}) (Collection, error) {
 	batch := dbConn.Batch()
 
 	if id == "" {
-		return fmt.Errorf("key fields are missing: key %s", id)
+		return Collection{}, fmt.Errorf("key fields are missing: key %s", id)
 	}
 
+	v := Collection{}
 	log.Printf("PATCH CRUD")
 	if exists(ctx, dbConn, id) {
 		r["last_update"] = time.Now()
 		batch.Set(dbConn.Collection(CollectionName).Doc(id), r, firestore.MergeAll)
 		_, err := batch.Commit(ctx)
 		if err != nil {
-			return err
+			return v, err
+		}
+		v, err = GetByID(ctx, dbConn, id)
+		if err != nil {
+			return Collection{}, err
 		}
 	} else {
-		return fmt.Errorf("document does not exists to update: key %s", id)
+		return Collection{}, fmt.Errorf("document does not exists to update: key %s", id)
 	}
 
-	return nil
+	return v, nil
 }
 
 // Delete deletes the record
@@ -170,13 +175,15 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 	var iter *firestore.DocumentIterator
 	if len(filters) == 0 {
 		iter = dbConn.Collection(CollectionName).Documents(ctx)
-	} else if len(filters) == 1 { //TODO: use a for loop instead of hardcoding using else if
+		// } else { //TODO: use a for loop instead of hardcoding using else if
+	} else if len(filters) == 1 {
 		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Documents(ctx)
 	} else if len(filters) == 2 {
 		iter = dbConn.Collection(CollectionName).Where(fields[0], "==", fieldvals[0]).Where(fields[1], "==", fieldvals[1]).Documents(ctx)
 	} else if len(filters) > 2 {
 		return []Collection{}, fmt.Errorf("query params are %d, supports only 2 params", len(filters))
 	}
+
 	for {
 		doc, err := iter.Next()
 

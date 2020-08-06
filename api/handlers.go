@@ -162,7 +162,7 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 // HandleNotesPatch updates only give key values in input
 func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	// note := notes.Collection{}
+	note := notes.Collection{}
 
 	id := mux.Vars(r)["id"]
 	if id == "" {
@@ -182,12 +182,15 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := notes.Patch(c, dbConn, id, data); err != nil {
+	if note, err = notes.Patch(c, dbConn, id, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprintf(w, "Document with id %s is updated\n", id)
+	if err := json.NewEncoder(w).Encode(note); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func keyExists(k string) bool {
