@@ -23,15 +23,15 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) erro
 	checkURL := map[string]string{}
 
 	for _, r := range list {
-		if r.URL == "" {
+		if r.EncodedURL == "" {
 			log.Printf("url is emtpy")
 			return fmt.Errorf("record must have url value")
 		}
-		checkURL["url"] = r.URL
+		checkURL["encodedurl"] = r.EncodedURL
 		existing, err := Get(ctx, dbConn, checkURL)
 		if err != nil {
 			log.Printf("error getting record by url: %v", err)
-			return fmt.Errorf("document does not exists to update: url %s", r.URL)
+			return fmt.Errorf("document does not exists to update: url %s", r.EncodedURL)
 		}
 		if len(existing) == 0 {
 			r.CreatedDate = time.Now()
@@ -47,9 +47,9 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) erro
 				}
 				errs = append(errs, errors.NewError(errType, r.ID()).(errors.ErrMsg))
 			}
-		} else if existing[0].URL == r.URL {
-			log.Printf("record already exists by url: %v", r.URL)
-			return fmt.Errorf("record already exists with encodedurl %s", r.URL)
+		} else if existing[0].EncodedURL == r.EncodedURL {
+			log.Printf("record already exists by url: %v", r.EncodedURL)
+			return fmt.Errorf("record already exists with encodedurl %s", r.EncodedURL)
 		}
 	}
 	if len(errs) > 0 {
@@ -161,9 +161,6 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 
 	fields, fieldvals := []string{}, []string{}
 	for k, v := range filters {
-		if k == "encodedurl" {
-			k = "url" // TODO: remove this in crud and replace url in db as encodedurl
-		}
 		fields = append(fields, k)
 		fieldvals = append(fieldvals, v)
 	}

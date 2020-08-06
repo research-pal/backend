@@ -24,7 +24,7 @@ type Collection struct {
 	Notes         string    `firestore:"notes" json:"notes"`
 	PriorityOrder string    `firestore:"priority_order" json:"priority_order"`
 	Status        string    `firestore:"status" json:"status"`
-	URL           string    `firestore:"url" json:"url"`
+	EncodedURL    string    `firestore:"encodedurl" json:"encodedurl"`
 }
 
 // ID generates the document id in the format desired

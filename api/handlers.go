@@ -60,8 +60,7 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 
 	for k, v := range params {
 		if !keyExists(k) {
-			fmt.Fprintf(w, "given key `%s` is either doesn't exist or a typo, try correcting.", k)
-			// http.Error(w, err.Error(), http.StatusBadRequest) // not woring
+			http.Error(w, fmt.Sprintf("given key `%s` is either doesn't exist or a typo, try correcting.", k), http.StatusBadRequest)
 			return
 		}
 		filters[k] = v[0]
