@@ -3,6 +3,7 @@
 .golangci.yaml
 research-pal-backend
 notes.md
+todo
 #
 vendor/
 tmp/
