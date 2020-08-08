@@ -94,6 +94,9 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := []notes.Collection{}
+	
+	// Check for json keys (PUT,POST and PATCH) for entry into db, 
+	// meaning here block new key entry other than designed into db
 
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -124,6 +127,9 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := params["id"]
+
+	// Check for json keys (PUT,POST and PATCH) for entry into db, 
+	// meaning here block new key entry other than designed into db
 
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -190,6 +196,9 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "problem to read request body", http.StatusBadRequest)
 	}
+
+	// Check for json keys (PUT,POST and PATCH) for entry into db, 
+	// meaning here block new key entry other than designed into db
 
 	data := map[string]interface{}{}
 	err = json.Unmarshal(content, &data)
