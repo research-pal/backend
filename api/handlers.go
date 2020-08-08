@@ -142,7 +142,16 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	note.DocID = id
+	// note.DocID = id
+	note, err := notes.GetByID(c, dbConn, id)
+	if err != nil && err != notes.ErrorNoMatch {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if err == notes.ErrorNoMatch {
+		http.Error(w, err.Error()+": "+id, http.StatusNotFound)
+		return
+	}
+
 	if err := json.NewEncoder(w).Encode(note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -164,8 +173,6 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Fprintf(w, "Document with id %s is deleted\n", id)
 }
 
 // HandleNotesPatch updates only give key values in input

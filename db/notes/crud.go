@@ -85,12 +85,12 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 // Patch updates the record with only provided fields
 func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[string]interface{}) (Collection, error) {
 	batch := dbConn.Batch()
+	results := Collection{}
 
 	if id == "" {
-		return Collection{}, fmt.Errorf("key fields are missing: key %s", id)
+		return results, fmt.Errorf("key fields are missing: key %s", id)
 	}
 
-	v := Collection{}
 	log.Printf("PATCH CRUD")
 	if exists(ctx, dbConn, id) {
 		r["last_update"] = time.Now()
@@ -99,17 +99,17 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[strin
 		batch.Set(dbConn.Collection(CollectionName).Doc(id), r, firestore.MergeAll)
 		_, err := batch.Commit(ctx)
 		if err != nil {
-			return v, err
+			return results, err
 		}
-		v, err = GetByID(ctx, dbConn, id)
+		results, err = GetByID(ctx, dbConn, id)
 		if err != nil {
-			return Collection{}, err
+			return results, err
 		}
 	} else {
-		return Collection{}, fmt.Errorf("document does not exists to update: key %s", id)
+		return results, fmt.Errorf("document does not exists to update: key %s", id)
 	}
 
-	return v, nil
+	return results, nil
 }
 
 // Delete deletes the record
@@ -147,11 +147,11 @@ func GetByID(ctx context.Context, dbConn *firestore.Client, id string) (Collecti
 	if err != nil {
 		return Collection{}, err
 	}
-	v := Collection{}
-	v.DocID = id
-	r.DataTo(&v)
+	results := Collection{}
+	results.DocID = id
+	r.DataTo(&results)
 
-	return v, nil
+	return results, nil
 }
 
 // Get gets the records based on the keys and their values provided
