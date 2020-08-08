@@ -16,44 +16,47 @@ import (
 
 // Post posts the given list of records into the database collection
 // returns list of errors (in the format errors.ErrMsgs) for all the failed records
-func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) error {
+func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) ([]Collection, error) {
 	var errs errors.ErrMsgs
 	checkURL := map[string]string{}
+	results := []Collection{}
 
 	for _, r := range list {
 		if r.EncodedURL == "" {
 			log.Printf("url is emtpy")
-			return fmt.Errorf("record must have url value")
+			return results, fmt.Errorf("record must have url value")
 		}
 		checkURL["encodedurl"] = r.EncodedURL
 		existing, err := Get(ctx, dbConn, checkURL)
 		if err != nil {
 			log.Printf("error getting record by url: %v", err)
-			return fmt.Errorf("document does not exists to update: url %s", r.EncodedURL)
+			return results, fmt.Errorf("document does not exists to update: url %s", r.EncodedURL)
 		}
 		if len(existing) == 0 {
 			r.CreatedDate = time.Now()
 			r.LastUpdate = time.Now()
 			r.Status = "new"
+			r.DocID = r.ID()
 			log.Printf("POST CRUD")
-			_, err := dbConn.Collection(CollectionName).Doc(r.ID()).Create(ctx, r)
+			_, err := dbConn.Collection(CollectionName).Doc(r.DocID).Create(ctx, r)
 			if err != nil {
 				log.Printf("POST CRUD error: %#v", err)
 				errType := errors.ErrGeneric
 				if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
 					errType = errors.ErrExists
 				}
-				errs = append(errs, errors.NewError(errType, r.ID()).(errors.ErrMsg))
+				errs = append(errs, errors.NewError(errType, r.DocID).(errors.ErrMsg))
 			}
+			results = append(results, r)
 		} else if existing[0].EncodedURL == r.EncodedURL {
-			log.Printf("record already exists by url: %v", r.EncodedURL)
-			return fmt.Errorf("record already exists with encodedurl %s", r.EncodedURL)
+			log.Printf("document already exists by url: %v", r.EncodedURL)
+			return results, fmt.Errorf("document already exists with encodedurl %s", r.EncodedURL)
 		}
 	}
 	if len(errs) > 0 {
-		return errs
+		return results, errs
 	}
-	return nil
+	return results, nil
 }
 
 // Put updates the record
@@ -74,13 +77,11 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 	r.CreatedDate = existing.CreatedDate
 	r.LastUpdate = time.Now()
 
-	// checking for unique url if already exists in another document
 	check, _ := Get(ctx, dbConn, map[string]string{"encodedurl": r.EncodedURL})
 	if len(check) > 0 {
 		return fmt.Errorf("document already exists with url %s", r.EncodedURL)
 	}
 
-	// TODO : PUT and PATCH, when id provided in the request and is different than in the URL, we should throw error
 	_, err = dbConn.Collection(CollectionName).Doc(r.DocID).Set(ctx, r)
 	if err != nil {
 		return err
@@ -101,10 +102,19 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[strin
 	log.Printf("PATCH CRUD")
 	if exists(ctx, dbConn, id) {
 		r["last_update"] = time.Now()
+	
+		existing, err := Get(ctx, dbConn, map[string]string{"encodedurl": fmt.Sprintf("%v", r["encodedurl"])})
+		if err != nil {
+			log.Printf("error getting record by encodedurl: %v", err)
+			return results, fmt.Errorf("document does not exists to update: key %s", id)
+		}
+		if len(existing) > 0 {
+			return results, fmt.Errorf("document already exists with url %s", r["encodedurl"])
+		}
+
 		// TODO:find better method to update instead of using batch approach
-		// TODO : PUT and PATCH, when id provided in the request and is different than in the URL, we should throw error
 		batch.Set(dbConn.Collection(CollectionName).Doc(id), r, firestore.MergeAll)
-		_, err := batch.Commit(ctx)
+		_, err = batch.Commit(ctx)
 		if err != nil {
 			return results, err
 		}

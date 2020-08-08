@@ -100,12 +100,13 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := notes.Post(c, dbConn, note); err != nil {
+	results, err := notes.Post(c, dbConn, note)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(note); err != nil {
+	if err := json.NewEncoder(w).Encode(results); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -142,7 +143,7 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// note.DocID = id
+
 	note, err := notes.GetByID(c, dbConn, id)
 	if err != nil && err != notes.ErrorNoMatch {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
