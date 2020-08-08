@@ -73,6 +73,13 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 	log.Printf("PUT CRUD")
 	r.CreatedDate = existing.CreatedDate
 	r.LastUpdate = time.Now()
+
+	// checking for unique url if already exists in another document
+	check, _ := Get(ctx, dbConn, map[string]string{"encodedurl": r.EncodedURL})
+	if len(check) > 0 {
+		return fmt.Errorf("document already exists with url %s", r.EncodedURL)
+	}
+
 	// TODO : PUT and PATCH, when id provided in the request and is different than in the URL, we should throw error
 	_, err = dbConn.Collection(CollectionName).Doc(r.DocID).Set(ctx, r)
 	if err != nil {
