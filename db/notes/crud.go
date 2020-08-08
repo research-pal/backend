@@ -102,7 +102,7 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[strin
 	log.Printf("PATCH CRUD")
 	if exists(ctx, dbConn, id) {
 		r["last_update"] = time.Now()
-	
+
 		existing, err := Get(ctx, dbConn, map[string]string{"encodedurl": fmt.Sprintf("%v", r["encodedurl"])})
 		if err != nil {
 			log.Printf("error getting record by encodedurl: %v", err)
@@ -112,7 +112,6 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[strin
 			return results, fmt.Errorf("document already exists with url %s", r["encodedurl"])
 		}
 
-		// TODO:find better method to update instead of using batch approach
 		batch.Set(dbConn.Collection(CollectionName).Doc(id), r, firestore.MergeAll)
 		_, err = batch.Commit(ctx)
 		if err != nil {
