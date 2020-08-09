@@ -6,55 +6,32 @@ package notes
 import (
 	"context"
 	"fmt"
-	"log"
+	"net/url"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"github.com/muly/go-common/errors"
+	"github.com/muly/go-common/errors" // TODO: need to remove dependency on this package and then delete that package
 )
 
 // Post posts the given list of records into the database collection
 // returns list of errors (in the format errors.ErrMsgs) for all the failed records
 func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) ([]Collection, error) {
 	var errs errors.ErrMsgs
-	checkURL := map[string]string{}
 	results := []Collection{}
 
 	for _, r := range list {
-		if r.EncodedURL == "" {
-			log.Printf("url is emtpy")
-			return results, fmt.Errorf("record must have url value")
-		}
-		checkURL["encodedurl"] = r.EncodedURL
-		existing, err := Get(ctx, dbConn, checkURL)
+		var err error
+		r, err = post(ctx, dbConn, r)
 		if err != nil {
-			log.Printf("error getting record by url: %v", err)
-			return results, fmt.Errorf("document does not exists to update: url %s", r.EncodedURL)
-		}
-		if len(existing) == 0 {
-			r.CreatedDate = time.Now()
-			r.LastUpdate = time.Now()
-			r.Status = "new"
-			r.DocID = r.ID()
-			log.Printf("POST CRUD")
-			_, err := dbConn.Collection(CollectionName).Doc(r.DocID).Create(ctx, r)
-			if err != nil {
-				log.Printf("POST CRUD error: %#v", err)
-				errType := errors.ErrGeneric
-				if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
-					errType = errors.ErrExists
-				}
-				errs = append(errs, errors.NewError(errType, r.DocID).(errors.ErrMsg))
-			}
+			errs = append(errs, err.(errors.ErrMsg))
+		} else {
 			results = append(results, r)
-		} else if existing[0].EncodedURL == r.EncodedURL {
-			log.Printf("document already exists by url: %v", r.EncodedURL)
-			return results, fmt.Errorf("document already exists with encodedurl %s", r.EncodedURL)
 		}
 	}
 	if len(errs) > 0 {
-		return results, errs
+		return results, // results: the list with sucessfully posted records in first.
+			errs // errs: the failed records in error
 	}
 	return results, nil
 }
@@ -63,26 +40,24 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) ([]C
 // if unique fields which being doc id is missing in the parameters, return error
 // matches the record based on the doc id and updates the field with what is provided in the input struct
 func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
-	if r.DocID == "" {
+	// validate
+	if r.DocID == "" { // TODO: use check on ID() after #19 is fixed
 		return fmt.Errorf("key fields are missing: key %s", r.DocID)
 	}
 
-	existing, err := GetByID(ctx, dbConn, r.DocID)
-	if err != nil {
-		log.Printf("error getting record by id: %v", err)
-		return fmt.Errorf("document does not exists to update: key %s", r.DocID)
+	// check of already existance
+	exists, data := existsByID(ctx, dbConn, r.ID())
+	if !exists {
+		return errors.NewError(errors.ErrNotFound, r.ID())
 	}
 
-	log.Printf("PUT CRUD")
-	r.CreatedDate = existing.CreatedDate
+	if !r.existsByKeyFields(ctx, dbConn) {
+		return fmt.Errorf("document doesn't already exists by key fields")
+	}
+	r.CreatedDate = data.CreatedDate
 	r.LastUpdate = time.Now()
 
-	check, _ := Get(ctx, dbConn, map[string]string{"encodedurl": r.EncodedURL})
-	if len(check) > 0 {
-		return fmt.Errorf("document already exists with url %s", r.EncodedURL)
-	}
-
-	_, err = dbConn.Collection(CollectionName).Doc(r.DocID).Set(ctx, r)
+	_, err := dbConn.Collection(CollectionName).Doc(r.DocID).Set(ctx, r)
 	if err != nil {
 		return err
 	}
@@ -91,38 +66,26 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 }
 
 // Patch updates the record with only provided fields
-func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[string]interface{}) (Collection, error) {
-	batch := dbConn.Batch()
-	results := Collection{}
-
+func Patch(ctx context.Context, dbConn *firestore.Client, id string, updates map[string]interface{}) (Collection, error) {
 	if id == "" {
-		return results, fmt.Errorf("key fields are missing: key %s", id)
+		return Collection{}, fmt.Errorf("key fields are missing: key %s", id)
 	}
 
-	log.Printf("PATCH CRUD")
-	if exists(ctx, dbConn, id) {
-		r["last_update"] = time.Now()
+	exists, _ := existsByID(ctx, dbConn, id)
+	if !exists {
+		return Collection{}, errors.NewError(errors.ErrNotFound, id)
+	}
 
-		existing, err := Get(ctx, dbConn, map[string]string{"encodedurl": fmt.Sprintf("%v", r["encodedurl"])})
-		if err != nil {
-			log.Printf("error getting record by encodedurl: %v", err)
-			return results, fmt.Errorf("document does not exists to update: key %s", id)
-		}
-		if len(existing) > 0 {
-			return results, fmt.Errorf("document already exists with url %s", r["encodedurl"])
-		}
-
-		batch.Set(dbConn.Collection(CollectionName).Doc(id), r, firestore.MergeAll)
-		_, err = batch.Commit(ctx)
-		if err != nil {
-			return results, err
-		}
-		results, err = GetByID(ctx, dbConn, id)
-		if err != nil {
-			return results, err
-		}
-	} else {
-		return results, fmt.Errorf("document does not exists to update: key %s", id)
+	updates["last_update"] = time.Now()
+	batch := dbConn.Batch()
+	batch.Set(dbConn.Collection(CollectionName).Doc(id), updates, firestore.MergeAll)
+	_, err := batch.Commit(ctx)
+	if err != nil {
+		return Collection{}, err
+	}
+	results, err := GetByID(ctx, dbConn, id)
+	if err != nil {
+		return Collection{}, err
 	}
 
 	return results, nil
@@ -131,16 +94,16 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, r map[strin
 // Delete deletes the record
 // if doc id is blank in the input, returns generic error
 // if doc id is not found in the database, returns not found error
-// matches the record based on the doc id and delete the record
+// matches the record based on the doc id and deletes the record
 func Delete(ctx context.Context, dbConn *firestore.Client, id string) error {
 	if id == "" {
 		return errors.NewError(errors.ErrEmptyInput, "id")
 	}
-	if !exists(ctx, dbConn, id) {
+	exists, _ := existsByID(ctx, dbConn, id)
+	if !exists {
 		return errors.NewError(errors.ErrNotFound, id)
 	}
 
-	log.Printf("DELETE CRUD")
 	_, err := dbConn.Collection(CollectionName).Doc(id).Delete(ctx)
 	if err != nil {
 		return errors.NewError(errors.ErrGeneric, err.Error())
@@ -150,44 +113,34 @@ func Delete(ctx context.Context, dbConn *firestore.Client, id string) error {
 }
 
 // GetByID gets the record based on the doc id provided
-// if doc id is blank in the input, return error
-// if record is not found, error is returned
+// if doc id is blank in the input, returns generic error
+// if record is not found, returns not found error
 // Note: unlike Query(), Get doesn't apply Valid=True filter
 func GetByID(ctx context.Context, dbConn *firestore.Client, id string) (Collection, error) {
 	if id == "" {
-		return Collection{}, fmt.Errorf("id is missing, provide id")
+		return Collection{}, errors.NewError(errors.ErrEmptyInput, "id")
 	}
 
-	log.Printf("GETBYID CRUD")
-	r, err := dbConn.Collection(CollectionName).Doc(id).Get(ctx)
-	if err != nil {
-		return Collection{}, err
+	found, results := existsByID(ctx, dbConn, id)
+	if !found {
+		return Collection{}, errors.NewError(errors.ErrNotFound, id)
 	}
-	results := Collection{}
-	results.DocID = id
-	r.DataTo(&results)
 
 	return results, nil
 }
 
 // Get gets the records based on the keys and their values provided
-func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]string) ([]Collection, error) {
-	if filters == nil {
-		return []Collection{}, fmt.Errorf("required parameter is missing in URI")
-	}
-
-	results := []Collection{}
-
-	log.Printf("GETBYFILTER CRUD")
+func Get(ctx context.Context, dbConn *firestore.Client, filters url.Values) ([]Collection, error) {
 	query := dbConn.Collection(CollectionName).Query
 	for key, value := range filters {
-		query = query.Where(key, "==", value)
+		query = query.Where(key, "==", value[0])
 	}
 	docs, err := query.Documents(ctx).GetAll()
 	if err != nil {
 		return []Collection{}, err
 	}
 
+	results := []Collection{}
 	for _, doc := range docs {
 		r := Collection{}
 		if err := doc.DataTo(&r); err != nil {
@@ -200,10 +153,39 @@ func Get(ctx context.Context, dbConn *firestore.Client, filters map[string]strin
 	return results, nil
 }
 
-func exists(ctx context.Context, dbConn *firestore.Client, id string) bool {
-	_, err := dbConn.Collection(CollectionName).Doc(id).Get(ctx)
-	if err != nil {
-		return false
+func post(ctx context.Context, dbConn *firestore.Client, r Collection) (Collection, error) {
+	// check of already existance
+	if r.existsByKeyFields(ctx, dbConn) {
+		return Collection{}, fmt.Errorf("record already exists")
 	}
-	return true
+
+	if !r.isValidPost() {
+		return Collection{}, fmt.Errorf("record is invalid")
+	}
+
+	//
+	r.CreatedDate = time.Now()
+	r.LastUpdate = time.Now()
+	r.DocID = r.ID()
+	_, err := dbConn.Collection(CollectionName).Doc(r.DocID).Create(ctx, r)
+	if err != nil {
+		errType := errors.ErrGeneric
+		if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
+			errType = errors.ErrExists
+		}
+		return Collection{}, errors.NewError(errType, r.DocID).(errors.ErrMsg)
+	}
+	return r, nil
+}
+
+func existsByID(ctx context.Context, dbConn *firestore.Client, id string) (bool, Collection) {
+	doc, err := dbConn.Collection(CollectionName).Doc(id).Get(ctx)
+	if err != nil {
+		return false, Collection{}
+	}
+
+	c := Collection{}
+	doc.DataTo(&c)
+	c.DocID = doc.Ref.ID
+	return true, c
 }

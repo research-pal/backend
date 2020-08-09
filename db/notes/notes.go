@@ -1,10 +1,13 @@
 package notes
 
 import (
+	"context"
 	"errors"
 	"log"
+	"net/url"
 	"time"
 
+	"cloud.google.com/go/firestore"
 	"github.com/google/uuid"
 )
 
@@ -45,7 +48,33 @@ const (
 	CollectionName = "notes"
 )
 
-// // Query queries the database to return the list of matching records.
+// TODO: need to remove this field after the #19 is addressed
+func (r Collection) existsByKeyFields(ctx context.Context, dbConn *firestore.Client) bool {
+	filters := url.Values{"encodedurl": []string{r.EncodedURL}}
+	existing, err := Get(ctx, dbConn, filters)
+	if err != nil {
+		return false
+	}
+	if len(existing) > 0 {
+		return true
+	}
+	return false
+}
+
+func (r Collection) isValid() bool {
+	if r.EncodedURL == "" {
+		return false
+	}
+	return true
+}
+
+func (r Collection) isValidPost() bool {
+	if r.Status != "new" {
+		return false
+	}
+	return r.isValid()
+}
+
 // // Note: full text search is not supported at db layer. it is taken care at the service layer
 // // returns only valid videos (Valid == true)
 // func Query(ctx context.Context, dbConn *firestore.Client) ([]Collection, error) {
