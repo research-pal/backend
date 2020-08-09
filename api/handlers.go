@@ -3,19 +3,18 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"cloud.google.com/go/firestore"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/gorilla/mux"
 	"github.com/research-pal/backend/db/notes"
 	"google.golang.org/appengine"
 )
 
-var (
-	dbConn     *firestore.Client
-	encodedurl string
-)
+var dbConn *firestore.Client
 
 // Init initializes database connection
 func Init(client *firestore.Client) {
@@ -34,11 +33,14 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 	id := params["id"]
 
 	note, err := notes.GetByID(c, dbConn, id)
-	if err != nil && err != notes.ErrorNoMatch {
+	if err != nil {
+		if err == notes.ErrorNoMatch {
+			// TODO: there is a bug here. this logic not working.
+			// looks like the comparison on the value is not working like this. need to use error wrapping to fix
+			http.Error(w, err.Error()+": "+id, http.StatusNotFound)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else if err == notes.ErrorNoMatch {
-		http.Error(w, err.Error()+": "+id, http.StatusNotFound)
 		return
 	}
 
@@ -52,7 +54,6 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 // encodedurl, assignee, status, group, priority_order
 func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	filters := map[string]string{}
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -60,23 +61,17 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for k, v := range params {
-		if !keyExists(k) {
-			fmt.Fprintf(w, "given key `%s` is either doesn't exist or a typo, try correcting.", k)
-			// http.Error(w, err.Error(), http.StatusBadRequest) // not woring
-			return
-		}
-		filters[k] = v[0]
+	if valid, incorrectQueryParam := isAllowedQueryParam(params); !valid {
+		http.Error(w, fmt.Sprintf("invalid query parameters: `%v`", incorrectQueryParam), http.StatusBadRequest)
+		return
 	}
 
-	// Group Query params: encodedurl, status, group, assignee, priority_order
-
-	note, err := notes.Get(c, dbConn, filters)
+	note, err := notes.Get(c, dbConn, params)
 	if err != nil && err != notes.ErrorNoMatch {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if err == notes.ErrorNoMatch {
-		http.Error(w, fmt.Sprintf("no records found with given filters: %v", filters), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("no records found with given filters: %v", params), http.StatusNotFound)
 		return
 	}
 
@@ -91,8 +86,8 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleNotesPost saves the data in the db. below paramaters in json would do the action:
-// {"assignee":"","group":"","notes":"","priority_order":"","status":"","url":""}
+// HandleNotesPost saves the data in the db. below fields in json would do the action:
+// {"assignee":"","group":"","notes":"","priority_order":"","status":"","encodedurl":""}
 func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := []notes.Collection{}
@@ -102,19 +97,20 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := notes.Post(c, dbConn, note); err != nil {
+	results, err := notes.Post(c, dbConn, note)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(note); err != nil {
+	if err := json.NewEncoder(w).Encode(results); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
 // HandleNotesPut gets the data by id provided and replaces the content given in below parameters.
-// {"assignee":"","group":"","notes":"","priority_order":"","status":"","url":""}
+// {"assignee":"","group":"","notes":"","priority_order":"","status":"","encodedurl":""}
 func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := notes.Collection{}
@@ -131,8 +127,28 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := notes.Put(c, dbConn, id, note); err != nil {
+	if note.DocID == "" {
+		note.DocID = id
+	}
+
+	if note.ID() != id {
+		http.Error(w, "id in payload is incorrect", http.StatusBadRequest)
+		return
+	}
+
+	// TODO: need to return StatusBadRequest if the key fields in the request are different than in the existing record in db
+
+	if err := notes.Put(c, dbConn, note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	note, err := notes.GetByID(c, dbConn, id)
+	if err != nil && err != notes.ErrorNoMatch {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if err == notes.ErrorNoMatch {
+		http.Error(w, err.Error()+": "+id, http.StatusInternalServerError)
 		return
 	}
 
@@ -154,19 +170,80 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	id := params["id"]
 
 	if err := notes.Delete(c, dbConn, id); err != nil {
+		// TODO: need to check if the error is of type errors.ErrNotFound, and return 400 instead
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// HandleNotesPatch updates only the given fields from the request body
+// key fields are not allowed to be updated
+func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
+		return
+	}
+
+	content, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "problem to read request body", http.StatusBadRequest)
+	}
+
+	data := map[string]interface{}{}
+	if err = json.Unmarshal(content, &data); err != nil {
+		http.Error(w, "Unmarshal error..", http.StatusBadRequest)
+		return
+	}
+
+	if valid, invalidFields := isValidPatchData(data); !valid {
+		http.Error(w, fmt.Sprintf("invalid fields %v", invalidFields), http.StatusBadRequest)
+		return
+	}
+
+	note, err := notes.Patch(c, dbConn, id, data)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprintf(w, "Document with id %s is deleted\n", id)
+	if err := json.NewEncoder(w).Encode(note); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-func keyExists(k string) bool {
-	fields := []string{"encodedurl", "assignee", "status", "group", "priority_order"}
-	for i := range fields {
-		if fields[i] == k {
-			return true
+// isAllowedQueryParam validates if the given parameter list has any params not supported.
+// if found any, returns false along with the list of invalid params
+// else returns true
+func isAllowedQueryParam(params url.Values) (bool, []string) {
+	validParams := mapset.NewSetFromSlice([]interface{}{"encodedurl", "assignee", "status", "group", "priority_order"})
+	incorrectQueryParam := []string{}
+
+	for k := range params {
+		if !validParams.Contains(k) {
+			incorrectQueryParam = append(incorrectQueryParam, k)
 		}
 	}
-	return false
+	if len(incorrectQueryParam) > 0 {
+		return false, incorrectQueryParam
+	}
+	return true, nil
+}
+
+func isValidPatchData(data map[string]interface{}) (bool, []string) {
+	validFields := mapset.NewSetFromSlice([]interface{}{"assignee", "status", "group", "priority_order"})
+	incorrectFields := []string{}
+	for field := range data {
+		if !validFields.Contains(field) {
+			incorrectFields = append(incorrectFields, field)
+		}
+	}
+
+	if len(incorrectFields) > 0 {
+		return false, incorrectFields
+	}
+	return true, nil
 }
