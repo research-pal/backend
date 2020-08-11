@@ -42,7 +42,7 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) ([]C
 func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 	// validate
 	if r.DocID == "" { // TODO: use check on ID() after #19 is fixed
-		return fmt.Errorf("key fields are missing: key %s", r.DocID)
+		return fmt.Errorf("key fields are missing: key %s %w", r.DocID, ErrorInvalidData)
 	}
 
 	// check of already existance
@@ -101,7 +101,7 @@ func Delete(ctx context.Context, dbConn *firestore.Client, id string) error {
 	}
 	exists, _ := existsByID(ctx, dbConn, id)
 	if !exists {
-		return errors.NewError(errors.ErrNotFound, id)
+		return fmt.Errorf("%w : %v", ErrorNotFound, id)
 	}
 
 	_, err := dbConn.Collection(CollectionName).Doc(id).Delete(ctx)

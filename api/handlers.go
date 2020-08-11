@@ -136,7 +136,7 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := notes.Put(c, dbConn, note); err != nil {
-		if errors.Is(err, notes.ErrorNoMatch) || errors.Is(err, notes.ErrorInvalidData) {
+		if errors.Is(err, notes.ErrorNotFound) || errors.Is(err, notes.ErrorInvalidData) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -171,7 +171,10 @@ func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	id := params["id"]
 
 	if err := notes.Delete(c, dbConn, id); err != nil {
-		// TODO: need to check if the error is of type errors.ErrNotFound, and return 400 instead
+		if errors.Is(err, notes.ErrorNotFound) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
