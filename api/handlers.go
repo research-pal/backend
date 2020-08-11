@@ -35,9 +35,7 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 
 	note, err := notes.GetByID(c, dbConn, id)
 	if err != nil {
-		if err == notes.ErrorNoMatch {
-			// TODO: there is a bug here. this logic not working.
-			// looks like the comparison on the value is not working like this. need to use error wrapping to fix
+		if errors.Is(err, notes.ErrorNotFound) {
 			http.Error(w, err.Error()+": "+id, http.StatusNotFound)
 			return
 		}

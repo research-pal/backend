@@ -123,7 +123,7 @@ func GetByID(ctx context.Context, dbConn *firestore.Client, id string) (Collecti
 
 	found, results := existsByID(ctx, dbConn, id)
 	if !found {
-		return Collection{}, errors.NewError(errors.ErrNotFound, id)
+		return Collection{}, fmt.Errorf("%w", ErrorNotFound)
 	}
 
 	return results, nil
