@@ -48,11 +48,11 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 	// check of already existance
 	exists, data := existsByID(ctx, dbConn, r.ID())
 	if !exists {
-		return errors.NewError(errors.ErrNotFound, r.ID())
+		return fmt.Errorf("%v not found %w", r.ID(), ErrorNotFound)
 	}
 
 	if !r.existsByKeyFields(ctx, dbConn) {
-		return fmt.Errorf("document doesn't already exists by key fields")
+		return fmt.Errorf("document doesn't already exists by key fields, %w", ErrorInvalidData)
 	}
 	r.CreatedDate = data.CreatedDate
 	r.LastUpdate = time.Now()

@@ -13,8 +13,11 @@ import (
 
 // ErrorNoMatch reports when record is not matching
 var (
-	ErrorNoMatch = errors.New("No Matching Record")
-	ErrorMissing = errors.New("Missing Key Parameters")
+	ErrorNoMatch          = errors.New("No Matching Record")
+	ErrorMissing          = errors.New("Missing Key Parameters")
+	ErrorNotFound         = errors.New("Not Found")
+	ErrorConnectionFailed = errors.New("DB Connection Failed")
+	ErrorInvalidData      = errors.New("Invalid Data")
 )
 
 // Collection holds the table fields

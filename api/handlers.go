@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -136,9 +137,11 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: need to return StatusBadRequest if the key fields in the request are different than in the existing record in db
-
 	if err := notes.Put(c, dbConn, note); err != nil {
+		if errors.Is(err, notes.ErrorNoMatch) || errors.Is(err, notes.ErrorInvalidData) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -148,7 +151,7 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if err == notes.ErrorNoMatch {
-		http.Error(w, err.Error()+": "+id, http.StatusInternalServerError)
+		http.Error(w, err.Error()+": "+id, http.StatusBadRequest)
 		return
 	}
 
