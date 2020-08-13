@@ -90,7 +90,7 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 	// check of already existance
 	exists, data := existsByID(ctx, dbConn, r.ID())
 	if !exists {
-		return fmt.Errorf("%v not found %w", r.ID(), ErrorNotFound)
+		return fmt.Errorf("%v %w", r.ID(), ErrorNotFound)
 	}
 
 	if !r.existsByKeyFields(ctx, dbConn) {
@@ -157,11 +157,11 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, updates map
 func post(ctx context.Context, dbConn *firestore.Client, r Collection) (Collection, error) {
 	// check of already existance
 	if r.existsByKeyFields(ctx, dbConn) {
-		return Collection{}, fmt.Errorf("record already exists")
+		return Collection{}, fmt.Errorf("record %w", ErrorAlreadyExist)
 	}
 
 	if !r.isValidPost() {
-		return Collection{}, fmt.Errorf("record is invalid, %w", ErrorInvalidData)
+		return Collection{}, fmt.Errorf("record with %w", ErrorInvalidData)
 	}
 
 	//
@@ -171,9 +171,9 @@ func post(ctx context.Context, dbConn *firestore.Client, r Collection) (Collecti
 	_, err := dbConn.Collection(CollectionName).Doc(r.DocID).Create(ctx, r)
 	if err != nil {
 		if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
-			return Collection{}, fmt.Errorf("%s %v,", r.DocID, ErrorAlreadyExist)
+			return Collection{}, fmt.Errorf("%s %w", r.DocID, ErrorAlreadyExist)
 		}
-		return Collection{}, fmt.Errorf("%s %v,", r.DocID, err)
+		return Collection{}, fmt.Errorf("%s %v", r.DocID, err)
 	}
 	return r, nil
 }
