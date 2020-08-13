@@ -35,11 +35,7 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 
 	note, err := notes.GetByID(c, dbConn, id)
 	if err != nil {
-		if errors.Is(err, notes.ErrorNotFound) {
-			http.Error(w, err.Error()+": "+id, http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error()+": "+id, convertToHTTPStatus(err))
 		return
 	}
 
@@ -66,11 +62,8 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	}
 
 	note, err := notes.Get(c, dbConn, params)
-	if err != nil && err != notes.ErrorNoMatch {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else if err == notes.ErrorNoMatch {
-		http.Error(w, fmt.Sprintf("no records found with given filters: %v", params), http.StatusNotFound)
+	if err != nil {
+		http.Error(w, err.Error(), convertToHTTPStatus(err))
 		return
 	}
 
@@ -98,7 +91,7 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 
 	results, err := notes.Post(c, dbConn, note)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), convertToHTTPStatus(err))
 		return
 	}
 
@@ -114,12 +107,7 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := notes.Collection{}
 
-	params := mux.Vars(r)
-	if params["id"] == "" {
-		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
-		return
-	}
-	id := params["id"]
+	id := mux.Vars(r)["id"]
 
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -136,20 +124,13 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := notes.Put(c, dbConn, note); err != nil {
-		if errors.Is(err, notes.ErrorNotFound) || errors.Is(err, notes.ErrorInvalidData) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), convertToHTTPStatus(err))
 		return
 	}
 
 	note, err := notes.GetByID(c, dbConn, id)
-	if err != nil && err != notes.ErrorNotFound {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else if err == notes.ErrorNotFound {
-		http.Error(w, err.Error()+": "+id, http.StatusBadRequest)
+	if err != nil {
+		http.Error(w, err.Error(), convertToHTTPStatus(err))
 		return
 	}
 
@@ -163,19 +144,10 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 func HandleNotesDelete(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
-	params := mux.Vars(r)
-	if params["id"] == "" {
-		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
-		return
-	}
-	id := params["id"]
+	id := mux.Vars(r)["id"]
 
 	if err := notes.Delete(c, dbConn, id); err != nil {
-		if errors.Is(err, notes.ErrorNotFound) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), convertToHTTPStatus(err))
 		return
 	}
 }
@@ -186,10 +158,6 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
 	id := mux.Vars(r)["id"]
-	if id == "" {
-		http.Error(w, notes.ErrorMissing.Error(), http.StatusBadRequest)
-		return
-	}
 
 	content, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -209,7 +177,7 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 
 	note, err := notes.Patch(c, dbConn, id, data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), convertToHTTPStatus(err))
 		return
 	}
 
@@ -250,4 +218,16 @@ func isValidPatchData(data map[string]interface{}) (bool, []string) {
 		return false, incorrectFields
 	}
 	return true, nil
+}
+
+// convertToHTTPStatus converts a non nil error into the corresponding http status code
+func convertToHTTPStatus(err error) int {
+	switch {
+	case errors.Is(err, notes.ErrorInvalidData) || errors.Is(err, notes.ErrorAlreadyExist):
+		return http.StatusBadRequest
+	case errors.Is(err, notes.ErrorNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
 }

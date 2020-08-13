@@ -11,15 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// ErrorNoMatch reports when record is not matching
+// Error reports when record is not matching
 var (
-	ErrorNoMatch          = errors.New("No Matching Record")
-	ErrorMissing          = errors.New("Missing Key Parameters")
-	ErrorNotFound         = errors.New("Not Found")
-	ErrorConnectionFailed = errors.New("DB Connection Failed")
-	ErrorInvalidData      = errors.New("Invalid Data")
-	ErrorGeneral          = errors.New("Generic Error")
-	ErrorAlreadyExist     = errors.New("Already Exists")
+	ErrorNotFound     = errors.New("Not Found")
+	ErrorInvalidData  = errors.New("Invalid Data")
+	ErrorAlreadyExist = errors.New("Already Exists")
 )
 
 // Collection holds the table fields

@@ -122,7 +122,7 @@ func Delete(ctx context.Context, dbConn *firestore.Client, id string) error {
 
 	_, err := dbConn.Collection(CollectionName).Doc(id).Delete(ctx)
 	if err != nil {
-		return fmt.Errorf("%v, %w", err, ErrorGeneral)
+		return err
 	}
 
 	return nil
@@ -161,7 +161,7 @@ func post(ctx context.Context, dbConn *firestore.Client, r Collection) (Collecti
 	}
 
 	if !r.isValidPost() {
-		return Collection{}, fmt.Errorf("record is invalid")
+		return Collection{}, fmt.Errorf("record is invalid, %w", ErrorInvalidData)
 	}
 
 	//
@@ -170,11 +170,10 @@ func post(ctx context.Context, dbConn *firestore.Client, r Collection) (Collecti
 	r.DocID = r.ID()
 	_, err := dbConn.Collection(CollectionName).Doc(r.DocID).Create(ctx, r)
 	if err != nil {
-		errType := ErrorGeneral
 		if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
-			errType = ErrorAlreadyExist
+			return Collection{}, fmt.Errorf("%s %v,", r.DocID, ErrorAlreadyExist)
 		}
-		return Collection{}, fmt.Errorf("%s %v, %w", r.DocID, errType, ErrorGeneral)
+		return Collection{}, fmt.Errorf("%s %v,", r.DocID, err)
 	}
 	return r, nil
 }
