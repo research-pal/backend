@@ -145,10 +145,10 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	note, err := notes.GetByID(c, dbConn, id)
-	if err != nil && err != notes.ErrorNoMatch {
+	if err != nil && err != notes.ErrorNotFound {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	} else if err == notes.ErrorNoMatch {
+	} else if err == notes.ErrorNotFound {
 		http.Error(w, err.Error()+": "+id, http.StatusBadRequest)
 		return
 	}

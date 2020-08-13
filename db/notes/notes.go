@@ -18,6 +18,8 @@ var (
 	ErrorNotFound         = errors.New("Not Found")
 	ErrorConnectionFailed = errors.New("DB Connection Failed")
 	ErrorInvalidData      = errors.New("Invalid Data")
+	ErrorGeneral          = errors.New("Generic Error")
+	ErrorAlreadyExist     = errors.New("Already Exists")
 )
 
 // Collection holds the table fields

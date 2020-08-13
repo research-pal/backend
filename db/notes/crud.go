@@ -11,25 +11,67 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"github.com/muly/go-common/errors" // TODO: need to remove dependency on this package and then delete that package
 )
+
+// GetByID gets the record based on the doc id provided
+// if doc id is blank in the input, returns generic error
+// if record is not found, returns not found error
+// Note: unlike Query(), Get doesn't apply Valid=True filter
+func GetByID(ctx context.Context, dbConn *firestore.Client, id string) (Collection, error) {
+	if id == "" {
+		return Collection{}, fmt.Errorf("key fields are missing: key %s, %w", id, ErrorInvalidData)
+	}
+
+	found, results := existsByID(ctx, dbConn, id)
+	if !found {
+		return Collection{}, fmt.Errorf("%w", ErrorNotFound)
+	}
+
+	return results, nil
+}
+
+// Get gets the records based on the keys and their values provided
+func Get(ctx context.Context, dbConn *firestore.Client, filters url.Values) ([]Collection, error) {
+	query := dbConn.Collection(CollectionName).Query
+	for key, value := range filters {
+		query = query.Where(key, "==", value[0])
+	}
+	docs, err := query.Documents(ctx).GetAll()
+	if err != nil {
+		return []Collection{}, err
+	}
+
+	results := []Collection{}
+	for _, doc := range docs {
+		r := Collection{}
+		if err := doc.DataTo(&r); err != nil {
+			return []Collection{}, err
+		}
+		r.DocID = doc.Ref.ID
+		results = append(results, r)
+	}
+
+	return results, nil
+}
 
 // Post posts the given list of records into the database collection
 // returns list of errors (in the format errors.ErrMsgs) for all the failed records
 func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) ([]Collection, error) {
-	var errs errors.ErrMsgs
+	// var errs errors.ErrMsgs
+	var errs error
 	results := []Collection{}
 
 	for _, r := range list {
 		var err error
 		r, err = post(ctx, dbConn, r)
 		if err != nil {
-			errs = append(errs, err.(errors.ErrMsg))
+			errs = fmt.Errorf("%v, %w", errs, err)
 		} else {
 			results = append(results, r)
 		}
 	}
-	if len(errs) > 0 {
+	// if len(errs) > 0 {
+	if errs != nil {
 		return results, // results: the list with sucessfully posted records in first.
 			errs // errs: the failed records in error
 	}
@@ -65,15 +107,36 @@ func Put(ctx context.Context, dbConn *firestore.Client, r Collection) error {
 	return nil
 }
 
+// Delete deletes the record
+// if doc id is blank in the input, returns generic error
+// if doc id is not found in the database, returns not found error
+// matches the record based on the doc id and deletes the record
+func Delete(ctx context.Context, dbConn *firestore.Client, id string) error {
+	if id == "" {
+		return fmt.Errorf("key fields are missing: key %s, %w", id, ErrorInvalidData)
+	}
+	exists, _ := existsByID(ctx, dbConn, id)
+	if !exists {
+		return fmt.Errorf("%w : %v", ErrorNotFound, id)
+	}
+
+	_, err := dbConn.Collection(CollectionName).Doc(id).Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("%v, %w", err, ErrorGeneral)
+	}
+
+	return nil
+}
+
 // Patch updates the record with only provided fields
 func Patch(ctx context.Context, dbConn *firestore.Client, id string, updates map[string]interface{}) (Collection, error) {
 	if id == "" {
-		return Collection{}, fmt.Errorf("key fields are missing: key %s", id)
+		return Collection{}, fmt.Errorf("key fields are missing: key %s, %w", id, ErrorInvalidData)
 	}
 
 	exists, _ := existsByID(ctx, dbConn, id)
 	if !exists {
-		return Collection{}, errors.NewError(errors.ErrNotFound, id)
+		return Collection{}, fmt.Errorf("%v %w", id, ErrorNotFound)
 	}
 
 	updates["last_update"] = time.Now()
@@ -86,68 +149,6 @@ func Patch(ctx context.Context, dbConn *firestore.Client, id string, updates map
 	results, err := GetByID(ctx, dbConn, id)
 	if err != nil {
 		return Collection{}, err
-	}
-
-	return results, nil
-}
-
-// Delete deletes the record
-// if doc id is blank in the input, returns generic error
-// if doc id is not found in the database, returns not found error
-// matches the record based on the doc id and deletes the record
-func Delete(ctx context.Context, dbConn *firestore.Client, id string) error {
-	if id == "" {
-		return errors.NewError(errors.ErrEmptyInput, "id")
-	}
-	exists, _ := existsByID(ctx, dbConn, id)
-	if !exists {
-		return fmt.Errorf("%w : %v", ErrorNotFound, id)
-	}
-
-	_, err := dbConn.Collection(CollectionName).Doc(id).Delete(ctx)
-	if err != nil {
-		return errors.NewError(errors.ErrGeneric, err.Error())
-	}
-
-	return nil
-}
-
-// GetByID gets the record based on the doc id provided
-// if doc id is blank in the input, returns generic error
-// if record is not found, returns not found error
-// Note: unlike Query(), Get doesn't apply Valid=True filter
-func GetByID(ctx context.Context, dbConn *firestore.Client, id string) (Collection, error) {
-	if id == "" {
-		return Collection{}, errors.NewError(errors.ErrEmptyInput, "id")
-	}
-
-	found, results := existsByID(ctx, dbConn, id)
-	if !found {
-		return Collection{}, fmt.Errorf("%w", ErrorNotFound)
-	}
-
-	return results, nil
-}
-
-// Get gets the records based on the keys and their values provided
-func Get(ctx context.Context, dbConn *firestore.Client, filters url.Values) ([]Collection, error) {
-	query := dbConn.Collection(CollectionName).Query
-	for key, value := range filters {
-		query = query.Where(key, "==", value[0])
-	}
-	docs, err := query.Documents(ctx).GetAll()
-	if err != nil {
-		return []Collection{}, err
-	}
-
-	results := []Collection{}
-	for _, doc := range docs {
-		r := Collection{}
-		if err := doc.DataTo(&r); err != nil {
-			return []Collection{}, err
-		}
-		r.DocID = doc.Ref.ID
-		results = append(results, r)
 	}
 
 	return results, nil
@@ -169,11 +170,11 @@ func post(ctx context.Context, dbConn *firestore.Client, r Collection) (Collecti
 	r.DocID = r.ID()
 	_, err := dbConn.Collection(CollectionName).Doc(r.DocID).Create(ctx, r)
 	if err != nil {
-		errType := errors.ErrGeneric
+		errType := ErrorGeneral
 		if strings.Contains(err.Error(), "code = AlreadyExists desc = Document already exists") {
-			errType = errors.ErrExists
+			errType = ErrorAlreadyExist
 		}
-		return Collection{}, errors.NewError(errType, r.DocID).(errors.ErrMsg)
+		return Collection{}, fmt.Errorf("%s %v, %w", r.DocID, errType, ErrorGeneral)
 	}
 	return r, nil
 }
