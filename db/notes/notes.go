@@ -28,7 +28,7 @@ type Collection struct {
 	Notes         string    `firestore:"notes" json:"notes"`
 	PriorityOrder string    `firestore:"priority_order" json:"priority_order"`
 	Status        string    `firestore:"status" json:"status"`
-	EncodedURL    string    `firestore:"encodedurl" json:"encodedurl"`
+	URL           string    `firestore:"url" json:"url"`
 }
 
 // ID generates the document id in the format desired if the DocID is not there
@@ -49,9 +49,22 @@ const (
 	CollectionName = "notes"
 )
 
+// Unescape replaces the url escaped fields with the unescaped version.
+// if there is any error while cleaning, save the original value and log the error
+// the fields supported as of now are below:
+// 1) url
+func (r *Collection) Unescape() {
+	c, err := url.QueryUnescape(r.URL)
+	if err != nil {
+		log.Printf("unable to unescape %s: %v", r.URL, err)
+	} else {
+		r.URL = c
+	}
+}
+
 // TODO: need to remove this field after the #19 is addressed
 func (r Collection) existsByKeyFields(ctx context.Context, dbConn *firestore.Client) bool {
-	filters := url.Values{"encodedurl": []string{r.EncodedURL}}
+	filters := url.Values{"url": []string{r.URL}}
 	existing, err := Get(ctx, dbConn, filters)
 	if err != nil {
 		return false
@@ -62,65 +75,26 @@ func (r Collection) existsByKeyFields(ctx context.Context, dbConn *firestore.Cli
 	return false
 }
 
-func (r Collection) isValid() bool {
-	if r.EncodedURL == "" {
-		return false
+func (r Collection) isValid() (bool, []string) {
+	invalidReasons := []string{}
+	valid := true
+	if r.URL == "" {
+		invalidReasons = append(invalidReasons, `URL == ""`)
+		valid = false
 	}
-	return true
+	return valid, invalidReasons
 }
 
-func (r Collection) isValidPost() bool {
+func (r Collection) isValidPost() (bool, []string) {
+	invalidReasons := []string{}
+	valid := true
 	if r.Status != "new" {
-		return false
+		invalidReasons = append(invalidReasons, `Status != "new"`)
+		valid = false
 	}
-	return r.isValid()
+	if v, l := r.isValid(); !v {
+		invalidReasons = append(invalidReasons, l...)
+		valid = false
+	}
+	return valid, invalidReasons
 }
-
-// // Note: full text search is not supported at db layer. it is taken care at the service layer
-// // returns only valid videos (Valid == true)
-// func Query(ctx context.Context, dbConn *firestore.Client) ([]Collection, error) {
-// 	video := dbConn.Collection(CollectionVideo)
-
-// 	video.Query = video.Query.Where("valid", "==", true)
-
-// 	iter := video.Documents(ctx)
-// 	docs, err := iter.GetAll()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	results := []Collection{}
-// 	for _, d := range docs {
-// 		r := Collection{}
-// 		d.DataTo(&r)
-// 		// r.DBID = d.Ref.ID
-// 		results = append(results, r)
-// 	}
-// 	return results, nil
-// }
-
-// // QueryAll supports querying all videos, including the invalid ones
-// // supported filters:
-// // 1) valid
-// func QueryAll(ctx context.Context, dbConn *firestore.Client, valid *bool) ([]Collection, error) {
-// 	video := dbConn.Collection(CollectionVideo)
-
-// 	if valid != nil {
-// 		video.Query = video.Query.Where("valid", "==", *valid)
-// 	}
-
-// 	iter := video.Documents(ctx)
-// 	docs, err := iter.GetAll()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	results := []Collection{}
-// 	for _, d := range docs {
-// 		r := Collection{}
-// 		d.DataTo(&r)
-// 		// r.DBID = d.Ref.ID
-// 		results = append(results, r)
-// 	}
-// 	return results, nil
-// }

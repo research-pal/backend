@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -12,6 +14,14 @@ import (
 )
 
 func main() {
+	logmode := flag.String("logmode", "", "log mode: DEBUG, ERROR, INFO")
+	flag.Parse()
+	if strings.EqualFold(*logmode, "DEBUG") {
+		// add file path and line number to logs
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+		log.Printf("logging in debug mode")
+	}
+
 	dbClient := db.NewDBClient()
 	defer dbClient.Close()
 	api.Init(dbClient)
