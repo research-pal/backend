@@ -64,15 +64,18 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) ([]C
 		var err error
 		r, err = post(ctx, dbConn, r)
 		if err != nil {
-			errs = fmt.Errorf("%v, %w", errs, err)
-		} else {
-			results = append(results, r)
+			errs = fmt.Errorf("%v, %w", errs, err) // TODO: to improve the redability; need to tweak the format of wrapping based on the review of the errors value in case of multiple errors.
+			continue
 		}
+		results = append(results, r)
 	}
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6149ccb44e0ca2a04e1537eafb246665ec8c9f0e
 	if errs != nil {
-		return results, // results: the list with sucessfully posted records in first.
-			errs // errs: the failed records in error
+		return results, // results: the list with sucessfully posted records.
+			errs // errs: errors associated to the failed records
 	}
 	return results, nil
 }
@@ -159,8 +162,13 @@ func post(ctx context.Context, dbConn *firestore.Client, r Collection) (Collecti
 		return Collection{}, fmt.Errorf("record %w", ErrorAlreadyExist)
 	}
 
+<<<<<<< HEAD
 	if !r.isValidPost() {
 		return Collection{}, fmt.Errorf("record with %w", ErrorInvalidData)
+=======
+	if valid, invalidReasons := r.isValidPost(); !valid {
+		return Collection{}, fmt.Errorf("record is invalid: %v, %w", invalidReasons, ErrorInvalidData)
+>>>>>>> 6149ccb44e0ca2a04e1537eafb246665ec8c9f0e
 	}
 
 	//

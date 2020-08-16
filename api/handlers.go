@@ -2,14 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"cloud.google.com/go/firestore"
-	mapset "github.com/deckarep/golang-set"
 	"github.com/gorilla/mux"
 	"github.com/research-pal/backend/db/notes"
 	"google.golang.org/appengine"
@@ -46,7 +44,7 @@ func HandleNotesGetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleNotesGetFiltered get the filtered data. below filters are supported:
-// encodedurl, assignee, status, group, priority_order
+// url, assignee, status, group, priority_order
 func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
@@ -79,7 +77,7 @@ func HandleNotesGetFiltered(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleNotesPost saves the data in the db. below fields in json would do the action:
-// {"assignee":"","group":"","notes":"","priority_order":"","status":"","encodedurl":""}
+// {"assignee":"","group":"","notes":"","priority_order":"","status":"","url":""}
 func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := []notes.Collection{}
@@ -87,6 +85,10 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	for i := range note {
+		note[i].Unescape()
 	}
 
 	results, err := notes.Post(c, dbConn, note)
@@ -102,7 +104,7 @@ func HandleNotesPost(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleNotesPut gets the data by id provided and replaces the content given in below parameters.
-// {"assignee":"","group":"","notes":"","priority_order":"","status":"","encodedurl":""}
+// {"assignee":"","group":"","notes":"","priority_order":"","status":"","url":""}
 func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	note := notes.Collection{}
@@ -122,6 +124,8 @@ func HandleNotesPut(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "id in payload is incorrect", http.StatusBadRequest)
 		return
 	}
+
+	note.Unescape()
 
 	if err := notes.Put(c, dbConn, note); err != nil {
 		http.Error(w, err.Error(), convertToHTTPStatus(err))
@@ -166,7 +170,7 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{}
 	if err = json.Unmarshal(content, &data); err != nil {
-		http.Error(w, "Unmarshal error..", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unmarshal error.. %s: %v", content, err), http.StatusBadRequest)
 		return
 	}
 
@@ -184,50 +188,5 @@ func HandleNotesPatch(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-}
-
-// isAllowedQueryParam validates if the given parameter list has any params not supported.
-// if found any, returns false along with the list of invalid params
-// else returns true
-func isAllowedQueryParam(params url.Values) (bool, []string) {
-	validParams := mapset.NewSetFromSlice([]interface{}{"encodedurl", "assignee", "status", "group", "priority_order"})
-	incorrectQueryParam := []string{}
-
-	for k := range params {
-		if !validParams.Contains(k) {
-			incorrectQueryParam = append(incorrectQueryParam, k)
-		}
-	}
-	if len(incorrectQueryParam) > 0 {
-		return false, incorrectQueryParam
-	}
-	return true, nil
-}
-
-func isValidPatchData(data map[string]interface{}) (bool, []string) {
-	validFields := mapset.NewSetFromSlice([]interface{}{"assignee", "status", "group", "priority_order"})
-	incorrectFields := []string{}
-	for field := range data {
-		if !validFields.Contains(field) {
-			incorrectFields = append(incorrectFields, field)
-		}
-	}
-
-	if len(incorrectFields) > 0 {
-		return false, incorrectFields
-	}
-	return true, nil
-}
-
-// convertToHTTPStatus converts a non nil error into the corresponding http status code
-func convertToHTTPStatus(err error) int {
-	switch {
-	case errors.Is(err, notes.ErrorInvalidData) || errors.Is(err, notes.ErrorAlreadyExist):
-		return http.StatusBadRequest
-	case errors.Is(err, notes.ErrorNotFound):
-		return http.StatusNotFound
-	default:
-		return http.StatusInternalServerError
 	}
 }
