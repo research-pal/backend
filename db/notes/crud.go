@@ -69,10 +69,6 @@ func Post(ctx context.Context, dbConn *firestore.Client, list []Collection) ([]C
 		}
 		results = append(results, r)
 	}
-<<<<<<< HEAD
-
-=======
->>>>>>> 6149ccb44e0ca2a04e1537eafb246665ec8c9f0e
 	if errs != nil {
 		return results, // results: the list with sucessfully posted records.
 			errs // errs: errors associated to the failed records
